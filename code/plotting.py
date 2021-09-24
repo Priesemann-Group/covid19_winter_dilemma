@@ -29,7 +29,7 @@ colors_paul = ["#233954", "#ea5e48", "#1e7d72", "#f49546", "#e8bf58", # dark
                "#5886be", "#f3a093", "#53d8c9", "#f2da9c", "#f9c192"] # light
 
 
-def overview(model, path=None):
+def overview(model, path=None, silent=False):
     t = model.times
     data = model.chopped_data()
 
@@ -93,5 +93,5 @@ def overview(model, path=None):
     
     fig.align_ylabels()
     
-    plt.show()
+    if not silent: plt.show()
     if path!=None: fig.savefig(path)
