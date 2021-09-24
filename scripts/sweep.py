@@ -61,8 +61,8 @@ params = {
 
 # Input Parameter: alphas
 
-ICU = np.round(np.linspace(50, 200, 10), decimals=4)
-alphas = 1/ICU
+ICU = np.linspace(50, 400, 100)
+alphas = np.round(1/ICU, decimals=4)
 
 
 parser = argparse.ArgumentParser(description='Sweeps')
@@ -76,8 +76,8 @@ print(args.id)
 
 m = model.Model(**params)
 
-m.alpha_R = alphas[args.id]
+m.alpha_R = alphas[args.id-1]
 times, data = m.run()
 
 with open(f"../datamodelruns/alphaR={m.alpha_R}.pickle", "wb") as f:
-        pickle.dump(m, f)
+	pickle.dump(m, f)
