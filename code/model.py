@@ -99,7 +99,7 @@ class Model:
         return self.Rt_base if t<180 else self.Rt_free
 
     def Rt(self, t):
-        return self.R_0(t)*np.exp(-self.alpha_R*self.H_Rt(t)-self.e_R) * self.Gamma(t)
+        return self.R_0(t)*np.exp(-self.alpha_R*self.H_Rt(t)-self.e_R) * self.Gamma(t) /self.Gamma(360-self.d_0)
 
     def u_w(self, t):
         return self.u_base + (self.u_max-self.u_base)*(1-np.exp(-self.alpha_u*self.H_vac1(t)-self.e_u))
