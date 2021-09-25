@@ -18,4 +18,4 @@ conda activate soccer
 
  cd $HOME/Repositories/covid19_winter_dilemma/scripts/
 
-python -u ./sweep.py -i $SGE_TASK_ID
+python -u ./sweep_r.py -i $SGE_TASK_ID
