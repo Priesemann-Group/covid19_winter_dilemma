@@ -9,6 +9,7 @@ import model
 import argparse
 import pickle
 
+
 y0 = {
     'S': 276618.,
     'V': 599864.,
@@ -23,12 +24,23 @@ y0 = {
     'WC':  5000.,
 }
 
-params = parametros.params
+
+params = parametros.params.copy()
 
 
+#Input Parameter: scenarios
+scenarios=['scenario1', 'scenario2', 'scenario3']
 
 # Input Parameter: alphas
 alphas = parametros.alpharange
+
+mapping=[]
+for scen in scenarios:
+    for alphR in alphas:
+        for alphu in alphas:
+            for alphw in alphas:
+                mapping.append([scen, alphR, alphu, alphw])
+
 
 
 parser = argparse.ArgumentParser(description='Sweeps')
@@ -38,12 +50,21 @@ parser.add_argument(
 
 
 args = parser.parse_args()
+scenario, alphaR, alphau, alphaw = mapping[args.id-1]
 print(args.id)
+
+
+
+params["Rt_base"]=parametros.Rtbase[scenario]
 
 m = model.Model(**params)
 
-m.alpha_R = alphas[args.id]
-times, data = m.run()
 
-with open(f"../datamodelruns/alpha_r/sweep/alphaR={m.alpha_R}.pickle", "wb") as f:
-        pickle.dump(m, f)
+m.alpha_R = alphaR
+m.alpha_u = alphau
+m.alpha_w = alphaw
+
+times1, data1 = m.run()
+
+with open(f"../datamodelruns/sweep/scen={scenario}-aR={m.alpha_R}-au={m.alpha_u}-aw={m.alpha_w}.pickle", "wb") as f:
+        pickle.dump(m.data, f)
