@@ -12,12 +12,14 @@ y0 = {
     'R':  24500.,
     'UC':650000.,
     'WC':  5000.,
+    'D': 0.,
+    'C': 0.,
 }
 
 params = {
     'y0': list(y0.values()),
     'Rt_base': 3.25,
-    'Rt_free': 4.5,
+    'Rt_free': 5,
     'eta': 0.8,
     'kappa': 0.95,
     'sigma': 0.5,
@@ -29,9 +31,9 @@ params = {
     'omega_n_b': 1./(12*30),
     'chi_0': 0.1,
     'chi_1': 0.2,
-    'alpha_w': 0.018,
-    'alpha_u': 0.008,
-    'alpha_R': 0.01,
+    'alpha_w': 0.021,
+    'alpha_u': 0.014,
+    'alpha_R': 0.007,
     'e_R': 0.,
     'e_u': 0.,
     'e_w': 0.,
@@ -46,18 +48,19 @@ params = {
     'gamma_cutoff': 30.,
     'tau_vac1': 6*7.,
     'tau_vac2': 2*7.,
+    'Theta':0.0005366,
+    'Theta_ICU':0.09755,
     't_max': 360.,
     'step_size': 0.1,
 }
 
 
 Rtbase = {
-    'scenario1':4.5,
-    'scenario2':3.25,
+    'scenario1':5,
+    'scenario2':3.5,
     'scenario3':2,
-
 }
 
 
 #Sweep range for the alphas:
-alpharange=np.round(1/np.linspace(50, 400, 100), decimals=4)
+alpharange=np.round(np.linspace(1/50, 1/400, 100), decimals=4)
