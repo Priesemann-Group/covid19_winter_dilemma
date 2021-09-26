@@ -31,7 +31,7 @@ params = {
     'omega_n_b': 1./(12*30),
     'chi_0': 0.1,
     'chi_1': 0.2,
-    'alpha_w': 0.021,
+    'alpha_w': 0.018,
     'alpha_u': 0.014,
     'alpha_R': 0.007,
     'e_R': 0.,
