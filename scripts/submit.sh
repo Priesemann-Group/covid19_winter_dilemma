@@ -3,13 +3,15 @@
 #$ -N Winterdilemma_Sweeps
 #$ -pe mvapich2-sam 32
 #$ -cwd
-#$ -t 1:100:1
+#$ -o ./log/outputs
+#$ -e ./log/errors
+#$ -t 1:2532:1
 
 # avoid multithreading in numpy
-export OPENBLAS_NUM_THREADS=32
-export MKL_NUM_THREADS=32
-export NUMEXPR_NUM_THREADS=32
-export OMP_NUM_THREADS=32
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+export OMP_NUM_THREADS=1
 
 # >>>  conda initialize >>>
 . $HOME/anaconda3/etc/profile.d/conda.sh
