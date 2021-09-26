@@ -58,11 +58,8 @@ def run(mapping):
 
     times1, data1 = m.run()
 
-    with open(
-        f"../datamodelruns/sweep/scen={scenario}-aR={m.alpha_R}-au={m.alpha_u}-aw={m.alpha_w}.pickle",
-        "wb",
-    ) as f:
-        pickle.dump(m.data, f)
+    fstring = f"/scratch03.local/smohr/covid19_wd_sweeps/scen={scenario}-aR={m.alpha_R}-au={m.alpha_u}-aw={m.alpha_w}.npz"
+    np.savez_compressed(fstring,np.array(m.chopped_data()))
 
 
 if __name__ == "__main__":
