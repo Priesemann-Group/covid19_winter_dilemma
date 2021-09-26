@@ -89,5 +89,5 @@ if __name__ == "__main__":
     mapping_chunks = list(chunks(mapping, 32))  # Create 32 mappings
 
     pool = Pool()
-    pool.map(run, mapping_chunks[i])
+    pool.map(run, mapping_chunks[args.id - 1])
     pool.close()
