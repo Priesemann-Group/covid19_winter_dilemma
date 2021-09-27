@@ -4,7 +4,6 @@ import numpy as np
 
 
 class Model:
-
     def __init__(
         self,
         y0,
@@ -22,7 +21,8 @@ class Model:
         mu, d_0, d_mu,
         a_Rt, a_vac, gamma_cutoff,
         tau_vac1, tau_vac2,
-        t_max, step_size
+        t_max, step_size,
+        Theta, Theta_ICU
     ):
         self.y0 = y0
         self.Rt_base = Rt_base
@@ -55,10 +55,12 @@ class Model:
         self.gamma_cutoff = gamma_cutoff
         self.tau_vac1 = tau_vac1
         self.tau_vac2 = tau_vac2
+        self.Theta = Theta
+        self.Theta_ICU = Theta_ICU
         self.t_max = t_max
         self.step_size = step_size
 
-        self.M = sum(self.y0[:-2])
+        self.M = sum(self.y0[:-4])
         self.u_max = 1-chi_0
         self.w_max = 1-chi_1
         self.c_v = 2. / ( self.M*self.omega_v_b*(1/(self.gamma+self.delta)) )
@@ -120,31 +122,33 @@ class Model:
         return 2*self.omega_n_b*(1-1/(1+np.exp(-self.c_v*self.Rt(t)*self.I_eff(I,IB))))
 
     def fun(self, t, y):
-        (S,V,W,E,EB,I,IB,ICU,R,UC,WC) = y
+        (S,V,W,E,EB,I,IB,ICU,R,UC,WC,D,C) = y
 
         dS = -self.gamma*self.Rt(t)*S/self.M*self.I_eff(I,IB) - self.Phi(t,UC)*self.M
         dV = -(1-self.eta)*self.gamma*self.Rt(t)*V/self.M*self.I_eff(I,IB) + (self.Phi(t,UC)+self.phi(t,WC))*self.M - self.omega_v(t,I,IB)*V
         dW = self.omega_v(t,I,IB)*V - self.gamma*self.Rt(t)*W/self.M*self.I_eff(I,IB) - self.phi(t,WC)*self.M + self.omega_n(t,I,IB)*R
         dE = self.gamma*self.Rt(t)*(S+W)/self.M*self.I_eff(I,IB) - self.rho*E
         dEB = (1-self.eta)*self.gamma*self.Rt(t)*V/self.M*self.I_eff(I,IB) - self.rho*EB
-        dI = self.rho*E - (self.gamma+self.delta)*I
-        dIB = self.rho*EB - (self.gamma + self.delta*(1-self.kappa))*IB
-        dICU = self.delta*(I+(1-self.kappa)*IB) - self.gamma_ICU*ICU
+        dI = self.rho*E - (self.gamma+self.delta+self.Theta)*I
+        dIB = self.rho*EB - (self.gamma + (self.Theta+self.delta)*(1-self.kappa))*IB
+        dICU = self.delta*(I+(1-self.kappa)*IB) - (self.Theta_ICU+self.gamma_ICU)*ICU
         dR = self.gamma*(I+IB) - self.omega_n(t,I,IB)*R + self.gamma_ICU*ICU
         dUC = self.M*self.Phi(t,UC)
         dWC = self.M*self.phi(t,WC)
+        dD = self.Theta*I+(1-self.kappa)*self.Theta*IB+self.Theta_ICU*ICU
+        dC = (S+W+(1-self.eta)*V)*self.gamma*self.Rt(t)*self.I_eff(I,IB)/self.M
     
-        return [dS,dV,dW,dE,dEB,dI,dIB,dICU,dR,dUC,dWC]
+        return [dS,dV,dW,dE,dEB,dI,dIB,dICU,dR,dUC,dWC,dD,dC]
 
 
     def run(self):
         times = np.arange(0,self.t_max,self.step_size)
-        self.data = np.zeros((self.time2index(self.t_max)+100,11))    # solve_ivp tends to look in the future, H_* needs values
+        self.data = np.zeros((self.time2index(self.t_max)+100,len(self.y0)))    # solve_ivp tends to look in the future, H_* needs values
         self.data[:self.time2index(0)+1,:] = [self.y0]*(self.time2index(0)+1)
 
         for i in range(len(times)-1):
             res = solve_ivp(self.fun, (times[i],times[i+1]), self.data[self.time2index(i*self.step_size)])
-            self.data[self.time2index(i*self.step_size)+1,:] = res["y"][:,-1:].reshape(11)
+            self.data[self.time2index(i*self.step_size)+1,:] = res["y"][:,-1:].reshape(len(self.y0))
 
         self.times = times
 
