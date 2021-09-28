@@ -127,8 +127,8 @@ class Model:
         dS = -self.gamma*self.Rt(t)*S/self.M*self.I_eff(I,IB) - self.Phi(t,UC)*self.M
         dV = -(1-self.eta)*self.gamma*self.Rt(t)*V/self.M*self.I_eff(I,IB) + (self.Phi(t,UC)+self.phi(t,WC))*self.M - self.omega_v(t,I,IB)*V
         dW = self.omega_v(t,I,IB)*V - self.gamma*self.Rt(t)*W/self.M*self.I_eff(I,IB) - self.phi(t,WC)*self.M + self.omega_n(t,I,IB)*R
-        dE = self.gamma*self.Rt(t)*(S+W)/self.M*self.I_eff(I,IB) - self.rho*E
-        dEB = (1-self.eta)*self.gamma*self.Rt(t)*V/self.M*self.I_eff(I,IB) - self.rho*EB
+        dE = self.gamma*self.Rt(t)*(S)/self.M*self.I_eff(I,IB) - self.rho*E
+        dEB = (1-self.eta)*self.gamma*self.Rt(t)*(V+W)/self.M*self.I_eff(I,IB) - self.rho*EB
         dI = self.rho*E - (self.gamma+self.delta+self.Theta)*I
         dIB = self.rho*EB - (self.gamma + (self.Theta+self.delta)*(1-self.kappa))*IB
         dICU = self.delta*(I+(1-self.kappa)*IB) - (self.Theta_ICU+self.gamma_ICU)*ICU

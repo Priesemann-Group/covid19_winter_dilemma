@@ -65,4 +65,4 @@ Rtbase = {
 
 
 #Sweep range for the alphas:
-alpharange=np.round(np.linspace(1/50, 1/400, 100), decimals=4)
+alpharange=np.round(np.linspace(1/50, 1/400, 30), decimals=4)
