@@ -104,17 +104,11 @@ class Model:
     def Rt(self, t):
         return self.R_0(t)*np.exp(-self.alpha_R*self.H_Rt(t)-self.e_R) * self.Gamma(t) /self.Gamma(360-self.d_0)
 
-    def u_w(self, t):
-        return self.u_base + (self.u_max-self.u_base)*(1-np.exp(-self.alpha_u*self.H_vac1(t)-self.e_u))
+    def Phi(self, t):
+        return 4*self.Phi_0/(1-self.chi_0)*(1-np.exp(-self.alpha_u*self.H_vac1(t)))
 
-    def Phi(self, t, UC):
-        return 0 if self.u_w(t)<UC/self.M else min(self.Phi_0,self.u_w(t)-UC/self.M)
-
-    def w_w(self, t):
-        return self.w_max*(1-np.exp(-self.alpha_w*self.H_vac2(t)-self.e_w))
-
-    def phi(self, t, WC):
-        return 0 if self.w_w(t)<WC/self.M else min(self.phi_0,WC/self.M)
+    def phi(self, t):
+        return 2*4*self.phi_0/(1-self.chi_1)*(1-np.exp(-self.alpha_w*self.H_vac2(t)))
 
     def omega_v(self, t, I, IB):
         return 2*self.omega_v_b*(1-1/(1+np.exp(-self.c_v*self.Rt(t)*self.I_eff(I,IB))))
@@ -124,18 +118,19 @@ class Model:
 
     def fun(self, t, y):
         (S,V,W,E,EB,I,IB,ICU,R,UC,WC,D,C) = y
-
-        dS = -self.gamma*self.Rt(t)*S/self.M*self.I_eff(I,IB) - self.Phi(t,UC)*self.M
-        dV = -(1-self.eta)*self.gamma*self.Rt(t)*V/self.M*self.I_eff(I,IB) + (self.Phi(t,UC)+self.phi(t,WC))*self.M - self.omega_v(t,I,IB)*V
-        dW = self.omega_v(t,I,IB)*V - self.gamma*self.Rt(t)*W/self.M*self.I_eff(I,IB) - self.phi(t,WC)*self.M + self.omega_n(t,I,IB)*R
+        
+        dUC = self.Phi(t)*UC*(1-UC/(self.M*(1-self.chi_0)))
+        dWC = self.phi(t)*WC*(1-WC/(V*(1-self.chi_1)))
+        
+        dS = -self.gamma*self.Rt(t)*S/self.M*self.I_eff(I,IB) - dUC
+        dV = -(1-self.eta)*self.gamma*self.Rt(t)*V/self.M*self.I_eff(I,IB) + dUC + dWC - self.omega_v(t,I,IB)*V
+        dW = self.omega_v(t,I,IB)*V - self.gamma*self.Rt(t)*W/self.M*self.I_eff(I,IB) - dWC + self.omega_n(t,I,IB)*R
         dE = self.gamma*self.Rt(t)*(S)/self.M*self.I_eff(I,IB) - self.rho*E
         dEB = (1-self.eta)*self.gamma*self.Rt(t)*V/self.M*self.I_eff(I,IB) + self.gamma*self.Rt(t)*W/self.M*self.I_eff(I,IB)- self.rho*EB
         dI = self.rho*E - (self.gamma+self.delta+self.Theta)*I
         dIB = self.rho*EB - (self.gamma + (self.Theta+self.delta)*(1-self.kappa))*IB
         dICU = self.delta*(I+(1-self.kappa)*IB) - (self.Theta_ICU+self.gamma_ICU)*ICU
         dR = self.gamma*(I+IB) - self.omega_n(t,I,IB)*R + self.gamma_ICU*ICU
-        dUC = self.M*self.Phi(t,UC)
-        dWC = self.M*self.phi(t,WC)
         dD = self.Theta*I+(1-self.kappa)*self.Theta*IB+self.Theta_ICU*ICU
         dC = (S+W+(1-self.eta)*V)*self.gamma*self.Rt(t)*self.I_eff(I,IB)/self.M
     
