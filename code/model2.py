@@ -22,7 +22,7 @@ class Model:
         a_Rt, a_vac, gamma_cutoff,
         tau_vac1, tau_vac2,
         t_max, step_size,
-        Theta, Theta_ICU, influx
+        Theta, Theta_ICU, influx, r_base
     ):
         self.y0 = y0
         self.Rt_base = Rt_base
@@ -60,6 +60,7 @@ class Model:
         self.t_max = t_max
         self.step_size = step_size
         self.influx = influx
+        self.r_base = r_base
 
         self.M = sum(self.y0[:-4])
         self.u_max = 1-chi_0
@@ -105,10 +106,12 @@ class Model:
         return self.R_0(t)*np.exp(-self.alpha_R*self.H_Rt(t)-self.e_R) * self.Gamma(t) /self.Gamma(360-self.d_0)
 
     def Phi(self, t):
-        return 4*self.Phi_0/(1-self.chi_0)*(1-np.exp(-self.alpha_u*self.H_vac1(t)))
+        r_icu = 4*self.Phi_0/(1-self.chi_0)*(1-np.exp(-self.alpha_u*self.H_vac1(t)))
+        return 0.25*self.r_base + (1-0.25)*r_icu
 
     def phi(self, t):
-        return 2*4*self.phi_0/(1-self.chi_1)*(1-np.exp(-self.alpha_w*self.H_vac2(t)))
+        r_icu = 4*self.phi_0/(1-self.chi_1)*(1-np.exp(-self.alpha_w*self.H_vac2(t)))
+        return self.r_base + r_icu #0.5*self.r_base + (1-0.5)*r_icu
 
     def omega_v(self, t, I, IB):
         return 2*self.omega_v_b*(1-1/(1+np.exp(-self.c_v*self.Rt(t)*self.I_eff(I,IB))))
@@ -119,8 +122,8 @@ class Model:
     def fun(self, t, y):
         (S,V,W,E,EB,I,IB,ICU,R,UC,WC,D,C) = y
         
-        dUC = self.Phi(t)*UC*(1-UC/(self.M*(1-self.chi_0)))
-        dWC = self.phi(t)*WC*(1-WC/(V*(1-self.chi_1)))
+        dUC = self.Phi(t)*UC*(1-UC/(self.M*(1-self.chi_0))) # self.Phi(t) is the time-dependent vaccination rate for first doses
+        dWC = self.phi(t)*WC*(1-WC/(V*(1-self.chi_1)))      # self.Phi(t) is the time-dependent vaccination rate for booster doses
         
         dS = -self.gamma*self.Rt(t)*S/self.M*self.I_eff(I,IB) - dUC
         dV = -(1-self.eta)*self.gamma*self.Rt(t)*V/self.M*self.I_eff(I,IB) + dUC + dWC - self.omega_v(t,I,IB)*V
