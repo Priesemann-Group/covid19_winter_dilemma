@@ -79,13 +79,16 @@ def overview(model, path=None, silent=False):
     ax5.set_xlabel("days")
     ax5.set_ylabel("fraction of population")
     ax5.legend(loc='upper left', ncol=2)
-    '''
-    ax6.plot(t, np.array(list(map(model.Phi, t, data[:,9])))*model.M, label='1.dose')    # avoid the list*int thingy
-    ax6.plot(t, np.array(list(map(model.phi, t, data[:,10])))*model.M, label='2.dose')
+    
+    d1 = np.array(list(map(model.Phi,t))) * data[:,9] *(1-data[:,9]/(model.M*(1-model.chi_0)))
+    d2 = np.array(list(map(model.phi,t))) * data[:,10] *(1-data[:,10]/(data[:,1]*(1-model.chi_1)))
+
+    ax6.plot(t, d1, label='1.dose')    # avoid the list*int thingy
+    ax6.plot(t, d2, label='2.dose')
     ax6.set_ylim(0,None)
     ax6.set_ylabel("daily vaccinations")
     ax6.legend(loc='upper left')
-    '''
+    
     for ax in [ax1,ax2,ax3,ax4,ax5,ax6]:
         l,u = ax.get_ylim()
         ax.set_ylim(l,u+0.4*(u-l))

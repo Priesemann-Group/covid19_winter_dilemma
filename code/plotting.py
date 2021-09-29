@@ -131,11 +131,13 @@ def sixpanels(models, path=None, silent=False, arial=False, ICUcap=None):
     
     for i,m in enumerate([m1,m2,m3]):
         ax1.plot(t[:1800], m.Rt_base/m.Rt_free*np.ones(len(t[:1800])), color=main_colors[i])
-        ax2.plot(t, data[i][:,7], color=main_colors[i])
-#        ax3.plot(t, (data[i][:,5]+data[i][:,6]), color=main_colors[i])
-        ax3.plot(t, m.rho*(data[i][:,3]+data[i][:,4]), color=main_colors[i])
-        ax4.plot(t, list(map(m.Rt, t)), color=main_colors[i], label='Rt')
-    
+        ax2.plot(t, m.rho*(data[i][:,3]+data[i][:,4]), color=main_colors[i])
+        ax3.plot(t, data[i][:,7], color=main_colors[i])
+#        ax4.plot(t, list(map(m.Rt, t)), color=main_colors[i], label='Rt')
+        d1 = np.array(list(map(m.Phi, t, data[i][:,9])))*m.M
+        d2 = np.array(list(map(m.phi, t, data[i][:,10])))*m.M
+        ax4.plot(t, 2*d1+d2, color=main_colors[i])
+
     ax5.bar(1, data[0][0,1]/1e6, 0.5,
         align='center', color=colors['now'], edgecolor='black', zorder=-1)
     ax5.bar(1, data[0][0,8]/1e6, 0.5,
@@ -160,17 +162,19 @@ def sixpanels(models, path=None, silent=False, arial=False, ICUcap=None):
 
     ax1.set_ylim(0,1.1)
     ax2.set_ylim(0,None)
+    ax3.set_ylim(0,None)
+    ax4.set_ylim(0,None)
     ax5.set_ylim(0,1)
     ax6.set_ylim(0,None)
 
     ax1.set_ylabel("Contact levels\ninfluenced\nby NPIs")
-    ax2.set_ylabel("ICU occupancy\nper million")
-#    ax3.set_ylabel("Infectious\nindividuals\nper million")
-    ax3.set_ylabel("Daily new infections\nper million")
-    ax4.set_ylabel("Reproduction number")
+    ax2.set_ylabel("Daily new infections\nper million")
+    ax3.set_ylabel("ICU occupancy\nper million")
+#    ax4.set_ylabel("Reproduction number")
+    ax4.set_ylabel("Daily vaccinations\nper million")
     ax5.set_ylabel("Immune fraction\nof the population")
     ax6.set_ylabel("Total deaths\nper million")
-    
+
     #Panel 1
     ax1.text(10,m1.Rt_base/5+0.05,'Scenario 3', size=7, color=colors['low'])
     ax1.text(10,m2.Rt_base/5+0.05,'Scenario 2', size=7, color=colors['mid'])
@@ -179,18 +183,18 @@ def sixpanels(models, path=None, silent=False, arial=False, ICUcap=None):
     
     #Lifting of restrictions
     ax1.text(0.54,0.05,'Lifting of\nrestrictions', size=7, color=colors['line'], transform=ax1.transAxes)
-    ax2.text(0.08,0.9,'Lifting of\nrestrictions', size=7, color=colors['line'], transform=ax2.transAxes)
-    ax3.text(0.08,0.9,'Lifting of\nrestrictions', size=7, color=colors['line'], transform=ax3.transAxes)
-    ax4.text(0.54,0.05,'Lifting of\nrestrictions', size=7, color=colors['line'], transform=ax4.transAxes)
-
+    for ax in [ax2,ax3,ax4]:
+        l,u = ax.get_ylim()
+        ax.set_ylim(l,u+0.15*(u-l))
+        ax.text(0.54,0.9,'Lifting of\nrestrictions', size=7, color=colors['line'], transform=ax.transAxes)
 
     for ax, label in zip([ax1,ax2,ax3,ax4,ax5,ax6], ['A','B','C','D','E','F']):
-       ax.text(-.12,1.1,label, size=12, weight='bold', color='black', transform=ax.transAxes)
+        ax.text(-.12,1.1,label, size=12, weight='bold', color='black', transform=ax.transAxes)
 
     if ICUcap != None:
-        ax2.axhspan(ICUcap-2,ICUcap+2, xmax=0.92, facecolor=colors['ICUcap'], edgecolor=None, zorder=-1)
-        ax2.text(1.0,0.3,'ICU capacity', size=7, color='red', rotation=-90, transform=ax2.transAxes)
-        ax2.scatter(380,ICUcap, marker="<", color='grey')
+        ax3.axhspan(ICUcap-2,ICUcap+2, xmax=0.92, facecolor=colors['ICUcap'], edgecolor=None, zorder=-1)
+        ax3.text(1.0,0.3,'ICU capacity', size=7, color='red', rotation=-90, transform=ax2.transAxes)
+        ax3.scatter(380,ICUcap, marker="<", color='grey')
 
     ax1.set_xticks([45, 135, 45+2*90, 45+3*90])
     ax1.set_xticklabels(['Oct.','Jan.','Apr.','July'])
@@ -210,8 +214,7 @@ def sixpanels(models, path=None, silent=False, arial=False, ICUcap=None):
                mpl.patches.Patch(facecolor=colors['high'], edgecolor='black', label='By vaccine')]
     ax5.legend(handles=handles, bbox_to_anchor=(0.4,0.8), ncol=1, frameon=False)
 
+    fig.align_ylabels()
+
     if not silent: plt.show()
     if path!=None: fig.savefig(path)
-
-
-

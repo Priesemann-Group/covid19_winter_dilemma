@@ -122,8 +122,8 @@ class Model:
     def fun(self, t, y):
         (S,V,W,E,EB,I,IB,ICU,R,UC,WC,D,C) = y
         
-        dUC = self.Phi(t)*UC*(1-UC/(self.M*(1-self.chi_0))) # self.Phi(t) is the time-dependent vaccination rate for first doses
-        dWC = self.phi(t)*WC*(1-WC/(V*(1-self.chi_1)))      # self.Phi(t) is the time-dependent vaccination rate for booster doses
+        dUC = self.Phi(t)*UC*(1-UC/(self.M*(1-self.chi_0)))  # self.Phi(t) is the time-dependent vaccination rate for first doses
+        dWC = self.phi(t)*WC*(1-WC/(UC*(1-self.chi_1)))      # self.phi(t) is the time-dependent vaccination rate for booster doses
         
         dS = -self.gamma*self.Rt(t)*S/self.M*self.I_eff(I,IB) - dUC
         dV = -(1-self.eta)*self.gamma*self.Rt(t)*V/self.M*self.I_eff(I,IB) + dUC + dWC - self.omega_v(t,I,IB)*V
