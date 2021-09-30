@@ -101,13 +101,14 @@ def overview(model, path=None, silent=False, arial=False):
 
 def sixpanels(models, path=None, silent=False, arial=False, ICUcap=None):
     set_rcParams(arial=arial)
+    mpl.rcParams["legend.fontsize"] = 7
 
     m1, m2, m3 = models
     t = m1.times
     data = [m1.chopped_data(), m2.chopped_data(), m3.chopped_data()]
 
     fig = plt.figure(figsize=(7*3/3., 2*1.9), constrained_layout=True)
-    grid = fig.add_gridspec(ncols=3, nrows=2, wspace=0.1)
+    grid = fig.add_gridspec(ncols=3, nrows=2, wspace=0.15)
 
     ax1 = fig.add_subplot(grid[0])
     ax2 = fig.add_subplot(grid[1], sharex=ax1)
@@ -118,9 +119,11 @@ def sixpanels(models, path=None, silent=False, arial=False, ICUcap=None):
 
     colors = {
         'low':'#0099B4FF', 'mid':'#00468BFF', 'high':'#1B1919FF', 'free':'#1B1919FF',
-        'lowL':'#0099B499', 'midL':'#00468B99', 'highL':'#1B191999',
+        'lowL':'#FFFFFFFF', 'midL':'#FFFFFFFF', 'highL':'#FFFFFFFF',
+#        'lowL':'#0099B499', 'midL':'#00468B99', 'highL':'#1B191999',
         'line':'#ADB6B6FF', 'ICUcap':'#FFAAAA',
-        'now':'#93dfedFF', 'nowL':'#93dfed99',
+        'now':'#ADB6B6FF', 'nowL':'#FFFFFFFF',
+#        'now':'#93dfedFF', 'nowL':'#93dfed99',
     }
     main_colors = [colors['low'],colors['mid'],colors['high']]
     main_colors_L = [colors['lowL'],colors['midL'],colors['highL']]
@@ -167,8 +170,10 @@ def sixpanels(models, path=None, silent=False, arial=False, ICUcap=None):
     ax5.set_ylim(0,1)
     ax6.set_ylim(0,None)
 
+    ax5.set_yticks([0.,0.25,0.5,0.75,1.])
+
     ax1.set_ylabel("Contact levels\ninfluenced\nby NPIs")
-    ax2.set_ylabel("Daily new infections\nper million")
+    ax2.set_ylabel("Daily new cases\nper million")
     ax3.set_ylabel("ICU occupancy\nper million")
 #    ax4.set_ylabel("Reproduction number")
     ax4.set_ylabel("Daily vaccinations\nper million")
@@ -179,7 +184,7 @@ def sixpanels(models, path=None, silent=False, arial=False, ICUcap=None):
     ax1.text(10,m1.Rt_base/5+0.05,'Scenario 3', size=7, color=colors['low'])
     ax1.text(10,m2.Rt_base/5+0.05,'Scenario 2', size=7, color=colors['mid'])
     ax1.text(10,m3.Rt_base/5+0.05,'Scenario 1', size=7, color=colors['high'])
-    ax1.text(200,m3.Rt_base/5+0.05,'Pre COVID-19', size=7, color=colors['line'])
+    ax1.text(200,m3.Rt_base/5+0.05,'No restrictions', size=7, color=colors['line'])
     
     #Lifting of restrictions
     ax1.text(0.54,0.05,'Lifting of\nrestrictions', size=7, color=colors['line'], transform=ax1.transAxes)
@@ -201,7 +206,7 @@ def sixpanels(models, path=None, silent=False, arial=False, ICUcap=None):
 
 
     ax5_x = [1,offset+2,offset+4]
-    ax5labels=['Now','After\nwinter', 'After\none year']
+    ax5labels=['Initial','After\nwinter', 'After\none year']
     ax5.set_xticks(ax5_x)
     ax5.set_xticklabels(ax5labels)
 
@@ -211,8 +216,8 @@ def sixpanels(models, path=None, silent=False, arial=False, ICUcap=None):
     ax6.set_xticklabels(ax6labels)
 
     handles = [mpl.patches.Patch(facecolor=colors['highL'], edgecolor='black', label='By infection'),
-               mpl.patches.Patch(facecolor=colors['high'], edgecolor='black', label='By vaccine')]
-    ax5.legend(handles=handles, bbox_to_anchor=(0.4,0.8), ncol=1, frameon=False)
+               mpl.patches.Patch(facecolor=colors['high'], edgecolor='black', label='By vaccination')]
+    ax5.legend(handles=handles, bbox_to_anchor=(0.1,0.9), ncol=1, frameon=False)
 
     fig.align_ylabels()
 
