@@ -69,8 +69,8 @@ class Model:
         self.M = sum(self.y0[:-4])
         self.u_max = 1-chi_0
         self.w_max = 1-chi_1
-        self.c_v = 2. / ( self.M*self.omega_v_b*(1/(self.gamma+self.delta)) )
-        self.c_n = 2. / ( self.M*self.omega_n_b*(1/(self.gamma+self.delta)) )
+        self.c_v = 2. / ( self.M*self.omega_v_b*(1/(self.gamma+self.delta+self.Theta)) )
+        self.c_n = 2. / ( self.M*self.omega_n_b*(1/(self.gamma+self.delta+self.Theta)) )
         self.t_min = self.gamma_cutoff + max(self.tau_vac1,self.tau_vac2)
 
         self.n = 1
