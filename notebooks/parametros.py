@@ -10,8 +10,8 @@ y0 = {
     'IB':    97.,
     'ICU':   18.,
     'R':  24500.,
-    'UC':650000,
-    'WC': 5000,
+    'UC':599864+97500,
+    'WC': 599864/100,
     'D': 0.,
     'C': 0.,
 }
@@ -53,6 +53,7 @@ params = {
     't_max': 360.,
     'step_size': 0.1,
     'influx': 1,
+    'epsilon_free':7,
 }
 
 
@@ -65,4 +66,4 @@ Rtbase = {
 
 
 #Sweep range for the alphas:
-alpharange=np.round(np.linspace(1/50, 1/400, 30), decimals=4)
+alpharange=np.round(np.linspace(1/50, 1/400, 100), decimals=4)
