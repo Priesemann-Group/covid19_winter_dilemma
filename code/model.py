@@ -23,7 +23,7 @@ class Model:
         a_Rt, a_vac, gamma_cutoff,
         tau_vac1, tau_vac2,
         t_max, step_size,
-        Theta, Theta_ICU, influx
+        Theta, Theta_ICU, influx, epsilon_free
     ):
         self.y0 = y0
         self.Rt_base = Rt_base
@@ -61,6 +61,7 @@ class Model:
         self.t_max = t_max
         self.step_size = step_size
         self.influx = influx
+        self.epsilon_free = epsilon_free
 
         self.M = sum(self.y0[:-4])
         self.u_max = 1-chi_0
@@ -100,7 +101,12 @@ class Model:
         return 1 + self.mu*np.cos(2*np.pi*(t+self.d_0-self.d_mu)/360.)
 
     def R_0(self, t):
-        return self.Rt_base if t<180 else self.Rt_free
+        if t<180-self.epsilon_free:
+            return self.Rt_base
+        if t>180+self.epsilon_free:
+            return self.Rt_free
+        else:
+            return self.Rt_base + (self.Rt_free-self.Rt_base)*(t-180+self.epsilon_free)/2/self.epsilon_free
 
     def Rt(self, t):
         return self.R_0(t)*np.exp(-self.alpha_R*self.H_Rt(t)-self.e_R) * self.Gamma(t) /self.Gamma(360-self.d_0)
