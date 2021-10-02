@@ -107,8 +107,8 @@ def sixpanels(models, path=None, silent=False, arial=False, ICUcap=None):
     t = m1.times
     data = [m1.chopped_data(), m2.chopped_data(), m3.chopped_data()]
 
-    fig = plt.figure(figsize=(7*3/3., 2*1.9), constrained_layout=True)
-    grid = fig.add_gridspec(ncols=3, nrows=2, wspace=0.15)
+    fig = plt.figure(figsize=(6., 3.5), constrained_layout=True)
+    grid = fig.add_gridspec(ncols=3, nrows=2, wspace=0.1)
 
     ax1 = fig.add_subplot(grid[0])
     ax2 = fig.add_subplot(grid[1], sharex=ax1)
@@ -159,7 +159,7 @@ def sixpanels(models, path=None, silent=False, arial=False, ICUcap=None):
 
 
     for ax in [ax1,ax2,ax3,ax4]:
-        ax.axvline(180, ls=':', color=colors['line'])
+        ax.axvline(180, ls=':', color=colors['line'], zorder=0)
         ax.set_xlabel('2021            2022')
 
 
@@ -181,9 +181,9 @@ def sixpanels(models, path=None, silent=False, arial=False, ICUcap=None):
     ax6.set_ylabel("Total deaths\nper million")
 
     #Panel 1
-    ax1.text(10,m1.Rt_base/5+0.05,'Scenario 3', size=7, color=colors['low'])
-    ax1.text(10,m2.Rt_base/5+0.05,'Scenario 2', size=7, color=colors['mid'])
-    ax1.text(10,m3.Rt_base/5+0.05,'Scenario 1', size=7, color=colors['high'])
+    ax1.text(0,m1.Rt_base/5+0.05,'Scenario 3', size=7, color=colors['low'])
+    ax1.text(0,m2.Rt_base/5+0.05,'Scenario 2', size=7, color=colors['mid'])
+    ax1.text(0,m3.Rt_base/5+0.05,'Scenario 1', size=7, color=colors['high'])
     ax1.text(200,m3.Rt_base/5+0.05,'No restrictions', size=7, color=colors['line'])
     
     #Lifting of restrictions
