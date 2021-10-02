@@ -119,16 +119,16 @@ class Model:
         return self.u_base + (self.u_max-self.u_base)*(1-np.exp(-self.alpha_u*self.H_vac1(t)-self.e_u))
 
     def Phi(self, t, UC):
-        if self.u_w(t) < (UC/self.M - self.epsilon_u): return 0
-        if self.u_w(t) > (UC/self.M + self.epsilon_u): return self.Phi_0
+        if UC/self.M < max(self.u_w(t) - self.epsilon_u, self.u_base): return self.Phi_0
+        if UC/self.M > min(self.u_w(t) + self.epsilon_u, 1-self.chi_0): return 0
         return (self.u_w(t) - UC/self.M + self.epsilon_u)/2./self.epsilon_u * self.Phi_0
 
     def w_w(self, t):
         return self.w_max*(1-np.exp(-self.alpha_w*self.H_vac2(t)-self.e_w))
 
     def phi(self, t, WC):
-        if self.w_w(t) < WC/self.M - self.epsilon_w: return 0
-        if self.w_w(t) > WC/self.M + self.epsilon_w: return self.phi_0
+        if WC/self.M < max(self.w_w(t) - self.epsilon_w, 0): return self.phi_0
+        if WC/self.M > min(self.w_w(t) + self.epsilon_w, 1-self.chi_1): return 0
         return (self.w_w(t) - WC/self.M + self.epsilon_w)/2./self.epsilon_w * self.phi_0
 
     def omega_v(self, t, I, IB):
