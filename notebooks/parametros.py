@@ -7,7 +7,7 @@ cases =    116.25
 ICU =       13.46
 W_V =    18000.0
 W_R =     9030.0
-darkfigure = 2.5
+darkfigure = 2
 
 params = {
 #    'y0': y0_array,
