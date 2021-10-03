@@ -6,6 +6,11 @@ params = {
     'Theta_ICU':0.0978747,
 }
 
+#Feb and March 2021
+serop=0.51
+#15. March
+#reported = 0.13
+
 # Values from OWD
 V_raw = 536500.0
 R_raw =  156600.0
@@ -13,7 +18,7 @@ cases =    18.56
 ICU =       0.84
 W_V =    14650.0
 W_R =     29100.0
-darkfigure = 2
+darkfigure = serop/(R_raw/1e6)
 
 y0 = {
     'V': V_raw - W_V,
@@ -21,7 +26,7 @@ y0 = {
     'W': W_V + darkfigure*W_R,
     'ICU': ICU,
 }
-
+y0['V']= V_raw - W_V - y0['R']*(1-(V_raw-W_V)/1e6)
 
 E_stay = 1./parametros.params['rho']
 I_stay = 1./(parametros.params['gamma']+parametros.params['delta']+parametros.params['Theta'])
@@ -48,6 +53,6 @@ y0.update({
 
 
 y0_array = [y0['S'],y0['V'],y0['W'],y0['E'],y0['EB'],y0['I'],y0['IB'],y0['ICU'],y0['R'],y0['UC'],y0['WC'],y0['D'],y0['C']]
-params['y0'] = y0_array
+
 
 

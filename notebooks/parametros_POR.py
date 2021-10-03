@@ -7,7 +7,7 @@ params = {
     'Theta_ICU':0.097566211,
 }
 
-
+serop=0.173
 
 
 # Values from OWD
@@ -17,14 +17,15 @@ cases =    191.4
 ICU =       12.88
 W_V =    18550
 W_R =     18400.0
-darkfigure = 2
+darkfigure = serop/(R_raw/1e6)
+
 y0 = {
     'V': V_raw - W_V,
     'R': darkfigure * (R_raw-W_R),
     'W': W_V + darkfigure*W_R,
     'ICU': ICU,
 }
-
+y0['V']= V_raw - W_V - y0['R']*(1-(V_raw-W_V)/1e6)
 
 E_stay = 1./parametros.params['rho']
 I_stay = 1./(parametros.params['gamma']+parametros.params['delta']+parametros.params['Theta'])
@@ -51,4 +52,3 @@ y0.update({
 
 
 y0_array = [y0['S'],y0['V'],y0['W'],y0['E'],y0['EB'],y0['I'],y0['IB'],y0['ICU'],y0['R'],y0['UC'],y0['WC'],y0['D'],y0['C']]
-params['y0'] = y0_array

@@ -1,5 +1,8 @@
 import numpy as np
 
+
+serop=0.112
+
 # Values from OWD
 V_raw = 603900.0
 R_raw =  47400.0
@@ -7,10 +10,9 @@ cases =    116.25
 ICU =       13.46
 W_V =    18000.0
 W_R =     9030.0
-darkfigure = 2
+darkfigure = serop/(R_raw/1e6)
 
 params = {
-#    'y0': y0_array,
     'Rt_base': 3.25,
     'Rt_free': 5,
     'eta': 0.75,
@@ -55,6 +57,7 @@ y0 = {
     'W': W_V + darkfigure*W_R,
     'ICU': ICU,
 }
+y0['V']= V_raw - W_V - y0['R']*(1-(V_raw-W_V)/1e6)
 
 E_stay = 1./params['rho']
 I_stay = 1./(params['gamma']+params['delta']+params['Theta'])
@@ -69,6 +72,7 @@ y0.update({
     'I': darkfigure*cases*I_stay*(1-breakthrough),
     'IB': darkfigure*cases*I_stay*breakthrough,
 })
+
 
 y0['S'] = 1e6 - sum(list(y0.values()))
 
@@ -88,7 +92,6 @@ Rtbase = {
     'scenario2':3.75,
     'scenario3':2.5,
 }
-
 
 
 #Sweep range for the alphas:
