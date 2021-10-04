@@ -130,16 +130,18 @@ def sixpanels(models, path=None, silent=False, arial=False, ICUcap=None):
 
 
 
-    ax1.plot(t[1800:], np.ones(1800), color=colors['free'])
+#    ax1.plot(t[1800:], np.ones(1800), color=colors['free'])
     
     for i,m in enumerate([m1,m2,m3]):
-        ax1.plot(t[:1800], m.Rt_base/m.Rt_free*np.ones(len(t[:1800])), color=main_colors[i])
+#        ax1.plot(t[:1800], m.Rt_base/m.Rt_free*np.ones(len(t[:1800])), color=main_colors[i])
+        ax1.plot(t, np.array(list(map(m.R_0, t)))/m.Rt_free, color=main_colors[i])
         ax2.plot(t, m.rho*(data[i][:,3]+data[i][:,4]), color=main_colors[i])
         ax3.plot(t, data[i][:,7], color=main_colors[i])
 #        ax4.plot(t, list(map(m.Rt, t)), color=main_colors[i], label='Rt')
-        d1 = np.array(list(map(m.Phi, t, data[i][:,9])))*m.M
-        d2 = np.array(list(map(m.phi, t, data[i][:,10])))*m.M
-        ax4.plot(t, 2*d1+d2, color=main_colors[i])
+        d1a = np.array(list(map(m.Phi, t+m.tau_vac1, data[i][:,9])))*m.M
+        d1b = np.array(list(map(m.Phi, t+m.tau_vac1/2., data[i][:,9])))*m.M
+        d2 = np.array(list(map(m.phi, t+m.tau_vac2, data[i][:,10])))*m.M
+        ax4.plot(t, d1a+d1b+d2, color=main_colors[i])
 
     ax5.bar(1, data[0][0,1]/1e6, 0.5,
         align='center', color=colors['now'], edgecolor='black', zorder=-1)
@@ -172,7 +174,7 @@ def sixpanels(models, path=None, silent=False, arial=False, ICUcap=None):
 
     ax5.set_yticks([0.,0.25,0.5,0.75,1.])
 
-    ax1.set_ylabel("Contact levels\ninfluenced\nby NPIs")
+    ax1.set_ylabel("Contact levels\ninfluenced by NPIs")
     ax2.set_ylabel("Daily new cases\nper million")
     ax3.set_ylabel("ICU occupancy\nper million")
 #    ax4.set_ylabel("Reproduction number")

@@ -53,6 +53,10 @@ y0.update({
 
 
 y0_array = [y0['S'],y0['V'],y0['W'],y0['E'],y0['EB'],y0['I'],y0['IB'],y0['ICU'],y0['R'],y0['UC'],y0['WC'],y0['D'],y0['C']]
+<<<<<<< HEAD
 
+=======
+params['y0'] = y0_array
+>>>>>>> Panel-3
 
 
