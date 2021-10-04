@@ -1,7 +1,6 @@
 from scipy.integrate import solve_ivp
 from scipy.stats import gamma as gamma_dist
 import numpy as np
-import pickle
 
 
 class Model:
@@ -23,7 +22,7 @@ class Model:
         a_Rt, a_vac, gamma_cutoff,
         tau_vac1, tau_vac2,
         t_max, step_size,
-        Theta, Theta_ICU, influx, epsilon_free
+        Theta, Theta_ICU, influx, r_base, epsilon_free
     ):
         self.y0 = y0
         self.Rt_base = Rt_base
@@ -61,6 +60,7 @@ class Model:
         self.t_max = t_max
         self.step_size = step_size
         self.influx = influx
+        self.r_base = r_base
         self.epsilon_free = epsilon_free
 
         self.M = sum(self.y0[:-4])
@@ -111,17 +111,13 @@ class Model:
     def Rt(self, t):
         return self.R_0(t)*np.exp(-self.alpha_R*self.H_Rt(t)-self.e_R) * self.Gamma(t) /self.Gamma(360-self.d_0)
 
-    def u_w(self, t):
-        return self.u_base + (self.u_max-self.u_base)*(1-np.exp(-self.alpha_u*self.H_vac1(t)-self.e_u))
+    def Phi(self, t):
+        r_icu = 4*self.Phi_0/(1-self.chi_0)*(1-np.exp(-self.alpha_u*self.H_vac1(t)))
+        return 0.25*self.r_base + (1-0.25)*r_icu
 
-    def Phi(self, t, UC):
-        return 0 if self.u_w(t)<UC/self.M else min(self.Phi_0,self.u_w(t)-UC/self.M)
-
-    def w_w(self, t):
-        return self.w_max*(1-np.exp(-self.alpha_w*self.H_vac2(t)-self.e_w))
-
-    def phi(self, t, WC):
-        return 0 if self.w_w(t)<WC/self.M else min(self.phi_0,WC/self.M)
+    def phi(self, t):
+        r_icu = 4*self.phi_0/(1-self.chi_1)*(1-np.exp(-self.alpha_w*self.H_vac2(t)))
+        return self.r_base + r_icu #0.5*self.r_base + (1-0.5)*r_icu
 
     def omega_v(self, t, I, IB):
         return 2*self.omega_v_b*(1-1/(1+np.exp(-self.c_v*self.Rt(t)*self.I_eff(I,IB))))
@@ -131,18 +127,19 @@ class Model:
 
     def fun(self, t, y):
         (S,V,W,E,EB,I,IB,ICU,R,UC,WC,D,C) = y
-
-        dS = -self.gamma*self.Rt(t)*S/self.M*self.I_eff(I,IB) - self.Phi(t,UC)*self.M
-        dV = -(1-self.eta)*self.gamma*self.Rt(t)*V/self.M*self.I_eff(I,IB) + (self.Phi(t,UC)+self.phi(t,WC))*self.M - self.omega_v(t,I,IB)*V
-        dW = self.omega_v(t,I,IB)*V - self.gamma*self.Rt(t)*W/self.M*self.I_eff(I,IB) - self.phi(t,WC)*self.M + self.omega_n(t,I,IB)*R
+        
+        dUC = self.Phi(t)*UC*(1-UC/(self.M*(1-self.chi_0)))  # self.Phi(t) is the time-dependent vaccination rate for first doses
+        dWC = self.phi(t)*WC*(1-WC/(UC*(1-self.chi_1)))      # self.phi(t) is the time-dependent vaccination rate for booster doses
+        
+        dS = -self.gamma*self.Rt(t)*S/self.M*self.I_eff(I,IB) - dUC
+        dV = -(1-self.eta)*self.gamma*self.Rt(t)*V/self.M*self.I_eff(I,IB) + dUC + dWC - self.omega_v(t,I,IB)*V
+        dW = self.omega_v(t,I,IB)*V - self.gamma*self.Rt(t)*W/self.M*self.I_eff(I,IB) - dWC + self.omega_n(t,I,IB)*R
         dE = self.gamma*self.Rt(t)*(S)/self.M*self.I_eff(I,IB) - self.rho*E
         dEB = (1-self.eta)*self.gamma*self.Rt(t)*V/self.M*self.I_eff(I,IB) + self.gamma*self.Rt(t)*W/self.M*self.I_eff(I,IB)- self.rho*EB
         dI = self.rho*E - (self.gamma+self.delta+self.Theta)*I
         dIB = self.rho*EB - (self.gamma + (self.Theta+self.delta)*(1-self.kappa))*IB
         dICU = self.delta*(I+(1-self.kappa)*IB) - (self.Theta_ICU+self.gamma_ICU)*ICU
         dR = self.gamma*(I+IB) - self.omega_n(t,I,IB)*R + self.gamma_ICU*ICU
-        dUC = self.M*self.Phi(t,UC)
-        dWC = self.M*self.phi(t,WC)
         dD = self.Theta*I+(1-self.kappa)*self.Theta*IB+self.Theta_ICU*ICU
         dC = (S+W+(1-self.eta)*V)*self.gamma*self.Rt(t)*self.I_eff(I,IB)/self.M
     
@@ -165,12 +162,3 @@ class Model:
     def chopped_data(self):
         return self.data[self.time2index(0):-100,:]
     
-    def save(self, path):
-        with open(path, "wb") as f:
-            pickle.dump(self, f)
-
-    @classmethod
-    def load(cls, path):
-        with open(path, "rb") as f:
-            return pickle.load(f)
-

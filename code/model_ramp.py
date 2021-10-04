@@ -23,7 +23,9 @@ class Model:
         a_Rt, a_vac, gamma_cutoff,
         tau_vac1, tau_vac2,
         t_max, step_size,
-        Theta, Theta_ICU, influx, epsilon_free
+        Theta, Theta_ICU,
+        influx,
+        epsilon_u, epsilon_w, epsilon_free
     ):
         self.y0 = y0
         self.Rt_base = Rt_base
@@ -61,6 +63,8 @@ class Model:
         self.t_max = t_max
         self.step_size = step_size
         self.influx = influx
+        self.epsilon_u = epsilon_u
+        self.epsilon_w = epsilon_w
         self.epsilon_free = epsilon_free
 
         self.M = sum(self.y0[:-4])
@@ -115,13 +119,17 @@ class Model:
         return self.u_base + (self.u_max-self.u_base)*(1-np.exp(-self.alpha_u*self.H_vac1(t)-self.e_u))
 
     def Phi(self, t, UC):
-        return 0 if self.u_w(t)<UC/self.M else min(self.Phi_0,self.u_w(t)-UC/self.M)
+        if UC/self.M < max(self.u_w(t) - self.epsilon_u, self.u_base): return self.Phi_0
+        if UC/self.M > min(self.u_w(t) + self.epsilon_u, 1-self.chi_0): return 0
+        return (self.u_w(t) - UC/self.M + self.epsilon_u)/2./self.epsilon_u * self.Phi_0
 
     def w_w(self, t):
         return self.w_max*(1-np.exp(-self.alpha_w*self.H_vac2(t)-self.e_w))
 
     def phi(self, t, WC):
-        return 0 if self.w_w(t)<WC/self.M else min(self.phi_0,WC/self.M)
+        if WC/self.M < max(self.w_w(t) - self.epsilon_w, 0): return self.phi_0
+        if WC/self.M > min(self.w_w(t) + self.epsilon_w, 1-self.chi_1): return 0
+        return (self.w_w(t) - WC/self.M + self.epsilon_w)/2./self.epsilon_w * self.phi_0
 
     def omega_v(self, t, I, IB):
         return 2*self.omega_v_b*(1-1/(1+np.exp(-self.c_v*self.Rt(t)*self.I_eff(I,IB))))
