@@ -8,24 +8,26 @@ sys.path.append("../code")
 sys.path.append("../notebooks")
 import parametros
 import model_ramp as model
-
-import numpy.random as npr
-
+from scipy.stats import norm
 
 params = parametros.params.copy()
-params.update({'y0': parametros.y0_array})
+params.update({"y0": parametros.y0_array})
 
 
 # Input Parameter: scenarios
 scenarios = ["scenario1", "scenario2", "scenario3"]
 
-nrValues=1000
-sigma=0.01/3
+nrValues = 33000
+sigma = 0.01 / 3
+
 # Input Parameter: alphas drawn from their distributions
-alphasR = np.round(npr.normal(params['alpha_R'], sigma, nrValues), decimals=6)
-alphasR = alphasR[alphasR >= 0]
-alphasu = np.round(npr.normal(params['alpha_u'], sigma, len(alphasR)), decimals=6)
-alphasw = np.round(npr.normal(params['alpha_w'], sigma, len(alphasR)), decimals=6)
+alphas = {}
+for alpha in ["alpha_R", "alpha_u", "alpha_w"]:
+    a = params[alpha]
+    l = a - 4 * sigma
+    u = a + 4 * sigma
+    x = np.linspace(l, u, int(np.floor(nrValues ** (1 / 3))))
+    alphas[alpha] = np.round(norm.pdf(x, loc=a, scale=sigma), decimals=6)
 
 
 def chunks(lst, n):
@@ -51,8 +53,8 @@ def run(mapping):
 
     times1, data1 = m.run()
 
-    fstring = f"/scratch03.local/smohr/covid19_wd_sweeps/scen={scen}-aR={m.alpha_R}-au={m.alpha_u}-aw={m.alpha_w}.npz"
-    np.savez_compressed(fstring,np.array(m.chopped_data()))
+    fstring = f"/scratch03.local/smohr/covid19_wd_sweeps/sens_dist-scen={scen}-aR={m.alpha_R}-au={m.alpha_u}-aw={m.alpha_w}.npz"
+    np.savez_compressed(fstring, np.array(m.chopped_data()))
 
 
 if __name__ == "__main__":
@@ -70,9 +72,10 @@ if __name__ == "__main__":
     # Create mapping
     mapping = []
     for sc in scenarios:
-        for i in range(len(alphasR)):
-            mapping.append([sc, alphasR[i], alphasu[i], alphasw[i]])
-
+        for aR in alphas["alpha_R"]:
+            for au in alphas["alpha_u"]:
+                for aw in alphas["alpha_w"]:
+                    mapping.append([sc, aR, au, aw])
 
     # Since we have 32 cores available let's start multiple models multithreaded
     mapping_chunks = list(chunks(mapping, 32))  # Create 32 mappings

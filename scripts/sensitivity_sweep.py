@@ -13,18 +13,32 @@ import numpy.random as npr
 
 
 params = parametros.params.copy()
-params.update({'y0': parametros.y0_array})
+params.update({"y0": parametros.y0_array})
 
 
 # Input Parameter: scenarios
 scenarios = ["scenario1", "scenario2", "scenario3"]
 
-nrValues=100
+nrValues = 1000
 # Input Parameter: alphas drawn from their distributions
-alphasR = np.round(np.linspace(0, 2*params['alpha_R'], nrValues), decimals=6)
+alphasR = np.round(np.linspace(0, 2 * params["alpha_R"], nrValues), decimals=6)
 
-alphasu = np.round(np.linspace(params['alpha_u']-1/2*params['alpha_u'], params['alpha_u']+1/2*params['alpha_u'], nrValues), decimals=6)
-alphasw = np.round(np.linspace(params['alpha_w']-1/3*params['alpha_w'], params['alpha_w']+1/3*params['alpha_w'], nrValues), decimals=6)
+alphasu = np.round(
+    np.linspace(
+        params["alpha_u"] - 1 / 2 * params["alpha_u"],
+        params["alpha_u"] + 1 / 2 * params["alpha_u"],
+        nrValues,
+    ),
+    decimals=6,
+)
+alphasw = np.round(
+    np.linspace(
+        params["alpha_w"] - 1 / 3 * params["alpha_w"],
+        params["alpha_w"] + 1 / 3 * params["alpha_w"],
+        nrValues,
+    ),
+    decimals=6,
+)
 
 
 def chunks(lst, n):
@@ -50,8 +64,8 @@ def run(mapping):
 
     times1, data1 = m.run()
 
-    fstring = f"/scratch03.local/smohr/covid19_wd_sweeps/scen={scen}-aR={m.alpha_R}-au={m.alpha_u}-aw={m.alpha_w}.npz"
-    np.savez_compressed(fstring,np.array(m.chopped_data()))
+    fstring = f"/scratch03.local/smohr/covid19_wd_sweeps/sens_sweep-scen={scen}-aR={m.alpha_R}-au={m.alpha_u}-aw={m.alpha_w}.npz"
+    np.savez_compressed(fstring, np.array(m.chopped_data()))
 
 
 if __name__ == "__main__":
@@ -66,21 +80,19 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
+    u = params["alpha_u"]
+    w = params["alpha_w"]
+    R = params["alpha_R"]
     # Create mapping
     # TO DO: Put the things into mapping
     mapping = []
     for sc in scenarios:
-        u = params['alpha_u']
-        w = params['alpha_w']
         for i in range(nrValues):
             mapping.append([sc, alphasR[i], u, w])
-        R = params['alpha_R']
         for i in range(nrValues):
             mapping.append([sc, R, alphasu[i], w])
-        u = params['alpha_u']
         for i in range(nrValues):
             mapping.append([sc, R, u, alphasw[i]])
-
 
     # Since we have 32 cores available let's start multiple models multithreaded
     mapping_chunks = list(chunks(mapping, 32))  # Create 32 mappings
