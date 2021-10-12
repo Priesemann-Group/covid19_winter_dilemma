@@ -124,30 +124,30 @@ class Model:
         return self.u_base + (self.u_max-self.u_base)*(1-np.exp(-self.alpha_u*self.H_vac1(t)-self.e_u))
 
     def _Phi(self, t, UC):
-        frac = self.u_w(t) - UC/self.M              # unvac people willing to vac as fraction of population
-        return ( frac > 0 ) * frac / self.time_u    # result can exceed max vac rate!
+        ppl = (self.u_w(t))*self.M - UC             # unvac people willing to vac
+        return ( ppl > 0 ) * ppl / self.time_u      # result can exceed max vac rate!
 
     def w_w(self, t):
         return self.w_max*(1-np.exp(-self.alpha_w*self.H_vac2(t)-self.e_w))
 
-    def _phi(self, t, WC):
-        frac = self.w_w(t) - WC/self.M              # unvac people willing to vac as fraction of population
-        return ( frac > 0 ) * frac / self.time_w    # result can exceed max vac rate!
+    def _phi(self, t, UC, WC, fracWv):
+        ppl = ((self.w_w(t))*UC - WC)
+        return ( ppl > 0 ) * ppl / self.time_w      # result can exceed max vac rate!
 
-    def get_phis(self, t, UC, WC):
+    def get_phis(self, t, UC, WC, fracWv):
         Phi = self._Phi(t, UC)
-        phi = self._phi(t, WC)
-        total = (Phi+phi).sum()
-        if total > self.vac_max:
-            Phi /= (total/self.vac_max)
-            phi /= (total/self.vac_max)
+        phi = self._phi(t, UC, WC, fracWv)
+        ratio = (Phi+phi).sum() / (self.vac_max*self.M.sum())
+        if ratio > 1:
+            Phi /= ratio
+            phi /= ratio
         return Phi, phi
 
     def omega_v(self, t, I, IBn, IBv):
-        return 2*self.omega_v_b*(1-1/(1+np.exp(-self.c_v*self.Rt(t)*self.I_eff(I,IBn,IBv))))
+        return self.omega_v_b#*(1-1/(1+np.exp(-self.c_v*self.Rt(t)*self.I_eff(I,IBn,IBv))))*2
 
     def omega_n(self, t, I, IBn, IBv):
-        return 2*self.omega_n_b*(1-1/(1+np.exp(-self.c_v*self.Rt(t)*self.I_eff(I,IBn,IBv))))
+        return self.omega_n_b#*(1-1/(1+np.exp(-self.c_v*self.Rt(t)*self.I_eff(I,IBn,IBv))))*2
 
     def fun(self, t, y):
         y.reshape([self.eqs,self.ags])
@@ -167,15 +167,15 @@ class Model:
         I_eff = self.I_eff(I, IBn, IBv)
         omega_n = self.omega_n(t, I, IBn, IBv)
         omega_v = self.omega_v(t, I, IBn, IBv)
-        Phi, phi = self.get_phis(t, UC, WC)
+        Phi, phi = self.get_phis(t, UC, WC, Wv/(Wv+V+Rv))
         infect = gamma*Rt*I_eff/M.sum()
 
 
         # differential equations
-        dS = -S*infect - Phi*M*(S/(S+Wn))
-        dV = -(1-eta)*V*infect + (Phi+phi)*M - omega_v*V
-        dWn = -Wn*infect + omega_n*R - Phi*M*(Wn/(S+Wn))
-        dWv = -Wv*infect + omega_v*V + omega_n*Rv - phi*M
+        dS = -S*infect - Phi*(S/(S+Wn))
+        dV = -(1-eta)*V*infect + Phi + phi - omega_v*V
+        dWn = -Wn*infect + omega_n*R - Phi*(Wn/(S+Wn))
+        dWv = -Wv*infect + omega_v*V + omega_n*Rv - phi
         dE = S*infect - rho*E
         dEBn = Wn*infect - rho*EBn
         dEBv = ((1-eta)*V+Wv)*infect - rho*EBv
@@ -186,8 +186,8 @@ class Model:
         dICUv = delta*(1-kappa)*IBv - (Theta_ICU+gamma_ICU)*ICUv
         dR = gamma*(I+IBn) - omega_n*R + gamma_ICU*ICU
         dRv = gamma*IBv - omega_n*Rv + gamma_ICU*ICUv
-        dUC = M*Phi
-        dWC = M*phi
+        dUC = Phi
+        dWC = phi
         dD = Theta*I + (1-kappa)*Theta*(IBn+IBv) + Theta_ICU*(ICU+ICUv)
         dC = (S+Wn+Wv+(1-eta)*V)*infect
 

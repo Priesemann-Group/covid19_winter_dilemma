@@ -156,7 +156,7 @@ params_base = {
     'd_0': 8*30.,       # seasonality start point
     'd_mu': 0.,         # day of seasonality maximum
     'a_Rt': 4.,
-    'b_Rt': 2.5,
+    'b_Rt': 0.7,
     'a_vac': 6.,
     'b_vac': 0.4,
     'gamma_cutoff': 45.,
@@ -189,8 +189,8 @@ params_por = {
 }
 
 params_ramp = {
-    'time_u':7.,
-    'time_w':7.,
+    'time_u':14.,
+    'time_w':14.,
 }
 
 params_logistic = {
