@@ -34,14 +34,14 @@ def calc_y0(params, V_raw, R_raw, cases, ICU, W_V, W_R, serop):
     S = 1e6 - Etot - Itot - ICU_raw - V_raw - R_raw*darkfigure
 
 
-    Eimmune =  (1-params['eta'])*(V+Wn+Wv)
+    Eimmune =  (1-params['eta'])*(V)
 
-    En = (Wn*(1-params['eta']))/(S+Eimmune)*Etot
-    Ev = (Wv+V)*(1-params['eta'])/(S+Eimmune)*Etot
+    En = (Wn)/(S+Wn+Wv+Eimmune)*Etot
+    Ev = (Wv+Eimmune)/(S+Wn+Wv+Eimmune)*Etot
     E = (1-(En+Ev)/Etot)*Etot
 
-    In = (Wn*(1-params['eta']))/(S+Eimmune)*Itot
-    Iv = (Wv+V)*(1-params['eta'])/(S+Eimmune)*Itot
+    In = (Wn)/(S+Wn+Wv+Eimmune)*Itot
+    Iv = (Wv+Eimmune)/(S+Wn+Wv+Eimmune)*Itot
     I = (1-(In+Iv)/Itot)*Itot
 
 
