@@ -87,20 +87,20 @@ class Model:
 
     def H_Rt(self, t):
         x = -np.arange(-self.gamma_cutoff,0,self.step_size)
-        d = self.data[self.time2index(t-self.gamma_cutoff):self.time2index(t),10:12].sum(axis=(1,2))
-        g = g = self.b_Rt**self.a_Rt*x**(self.a_Rt-1)*np.e**(-self.b_Rt*x)/gamma_func(self.a_Rt)
+        d = self.data[self.time2index(t-self.gamma_cutoff):self.time2index(t),10:12,:].sum(axis=(1,2))
+        g = self.b_Rt**self.a_Rt*x**(self.a_Rt-1)*np.e**(-self.b_Rt*x)/gamma_func(self.a_Rt)
         return (d*g).sum()*self.step_size
 
     def H_vac1(self, t):
         x = -np.arange(-self.gamma_cutoff,0,self.step_size)
-        d = self.data[self.time2index(t-self.gamma_cutoff-self.tau_vac1):self.time2index(t-self.tau_vac1),10:12].sum(axis=(1,2))
-        g = g = self.b_vac**self.a_vac*x**(self.a_vac-1)*np.e**(-self.b_vac*x)/gamma_func(self.a_vac)
+        d = self.data[self.time2index(t-self.gamma_cutoff):self.time2index(t),10:12,:].sum(axis=(1,2))
+        g = self.b_vac**self.a_vac*x**(self.a_vac-1)*np.e**(-self.b_vac*x)/gamma_func(self.a_vac)
         return (d*g).sum()*self.step_size
 
     def H_vac2(self, t):
         x = -np.arange(-self.gamma_cutoff,0,self.step_size)
-        d = self.data[self.time2index(t-self.gamma_cutoff-self.tau_vac2):self.time2index(t-self.tau_vac2),10:12].sum(axis=(1,2))
-        g = g = self.b_vac**self.a_vac*x**(self.a_vac-1)*np.e**(-self.b_vac*x)/gamma_func(self.a_vac)
+        d = self.data[self.time2index(t-self.gamma_cutoff):self.time2index(t),10:12,:].sum(axis=(1,2))
+        g = self.b_vac**self.a_vac*x**(self.a_vac-1)*np.e**(-self.b_vac*x)/gamma_func(self.a_vac)
         return (d*g).sum()*self.step_size
 
     def I_eff(self, I, IBn, IBv):
@@ -123,21 +123,22 @@ class Model:
     def u_w(self, t):
         return self.u_base + (self.u_max-self.u_base)*(1-np.exp(-self.alpha_u*self.H_vac1(t)-self.e_u))
 
-    def _Phi(self, t, UC):
+    def Phi(self, t, UC, frac):
         ppl = (self.u_w(t))*self.M - UC             # unvac people willing to vac
-        return ( ppl > 0 ) * ppl / self.time_u      # result can exceed max vac rate!
+        return ( ppl > 0 ) * ppl * frac / self.time_u      # result can exceed max vac rate!
 
     def w_w(self, t):
         return self.w_max*(1-np.exp(-self.alpha_w*self.H_vac2(t)-self.e_w))
 
-    def _phi(self, t, UC, WC, fracWv):
+    def phi(self, t, UC, WC, frac):
         ppl = ((self.w_w(t))*UC - WC)
-        return ( ppl > 0 ) * ppl / self.time_w      # result can exceed max vac rate!
+        return ( ppl > 0 ) * ppl * frac / self.time_w      # result can exceed max vac rate!
 
-    def get_phis(self, t, UC, WC, fracWv):
-        Phi = self._Phi(t, UC)
-        phi = self._phi(t, UC, WC, fracWv)
-        ratio = (Phi+phi).sum() / (self.vac_max*self.M.sum())
+    def get_phis(self, t, y):
+        (S,V,Wn,Wv,E,EBn,EBv,I,IBn,IBv,ICU,ICUv,R,Rv,UC,WC,D,C) = np.split(y, self.eqs)
+        Phi = self.Phi(t, UC, S/(S+R+Wn))
+        phi = self.phi(t, UC, WC, Wv/(Wv+Rv+V-WC))
+        ratio =  (Phi+phi).sum() / (self.vac_max*self.M.sum() - self.X1[self.time2index(t-self.tau_vac1/2.)].sum() )
         if ratio > 1:
             Phi /= ratio
             phi /= ratio
@@ -150,7 +151,7 @@ class Model:
         return self.omega_n_b#*(1-1/(1+np.exp(-self.c_v*self.Rt(t)*self.I_eff(I,IBn,IBv))))*2
 
     def fun(self, t, y):
-        y.reshape([self.eqs,self.ags])
+#        y = y.reshape([self.eqs,self.ags])
         (S,V,Wn,Wv,E,EBn,EBv,I,IBn,IBv,ICU,ICUv,R,Rv,UC,WC,D,C) = np.split(y, self.eqs)
 
         # definitions to make DEs more readable
@@ -167,15 +168,16 @@ class Model:
         I_eff = self.I_eff(I, IBn, IBv)
         omega_n = self.omega_n(t, I, IBn, IBv)
         omega_v = self.omega_v(t, I, IBn, IBv)
-        Phi, phi = self.get_phis(t, UC, WC, Wv/(Wv+V+Rv))
+        X1 = self.X1[self.time2index(t-self.tau_vac1),:]
+        X2 = self.X2[self.time2index(t-self.tau_vac2),:]
         infect = gamma*Rt*I_eff/M.sum()
 
 
         # differential equations
-        dS = -S*infect - Phi*(S/(S+Wn))
-        dV = -(1-eta)*V*infect + Phi + phi - omega_v*V
-        dWn = -Wn*infect + omega_n*R - Phi*(Wn/(S+Wn))
-        dWv = -Wv*infect + omega_v*V + omega_n*Rv - phi
+        dS = -S*infect - X1*(S/(S+Wn))
+        dV = -(1-eta)*V*infect + X1 + X2 - omega_v*V
+        dWn = -Wn*infect + omega_n*R - X1*(Wn/(S+Wn))
+        dWv = -Wv*infect + omega_v*V + omega_n*Rv - X2
         dE = S*infect - rho*E
         dEBn = Wn*infect - rho*EBn
         dEBv = ((1-eta)*V+Wv)*infect - rho*EBv
@@ -186,33 +188,36 @@ class Model:
         dICUv = delta*(1-kappa)*IBv - (Theta_ICU+gamma_ICU)*ICUv
         dR = gamma*(I+IBn) - omega_n*R + gamma_ICU*ICU
         dRv = gamma*IBv - omega_n*Rv + gamma_ICU*ICUv
-        dUC = Phi
-        dWC = phi
+        dUC = X1
+        dWC = X2
         dD = Theta*I + (1-kappa)*Theta*(IBn+IBv) + Theta_ICU*(ICU+ICUv)
         dC = (S+Wn+Wv+(1-eta)*V)*infect
 
         return np.concatenate([dS,dV,dWn,dWv,dE,dEBn,dEBv,dI,dIBn,dIBv,dICU,dICUv,dR,dRv,dUC,dWC,dD,dC]).flatten()
 
-    def build_data(self):
-        times = np.arange(0,self.t_max,self.step_size)
-        self.data = np.zeros((self.time2index(self.t_max)+100,self.eqs,self.ags))    # solve_ivp tends to look in the future, H_* needs values
-        self.data[:self.time2index(0)+1,:,:] = [self.y0.reshape([self.eqs,self.ags])]*(self.time2index(0)+1)
 
     def run(self):
         times = np.arange(0,self.t_max,self.step_size)
         self.data = np.zeros((self.time2index(self.t_max)+100,self.eqs,self.ags))    # solve_ivp tends to look in the future, H_* needs values
         self.data[:self.time2index(0)+1,:,:] = [self.y0.reshape([self.eqs,self.ags])]*(self.time2index(0)+1)
+        self.X1 = np.zeros((self.time2index(self.t_max)+100,self.ags))
+        self.X2 = np.zeros((self.time2index(self.t_max)+100,self.ags))
+        # build some history for X1,X2?
 
         for i in range(len(times)-1):
             res = solve_ivp(self.fun, (times[i],times[i+1]), self.data[self.time2index(i*self.step_size)].flatten())
-            self.data[self.time2index(i*self.step_size)+1,:,:] = res["y"][:,-1:].reshape(self.eqs,self.ags)
+            y = res["y"][:,-1:].reshape(self.eqs,self.ags)
+            self.data[self.time2index(i*self.step_size)+1,:,:] = y
+            Phi, phi = self.get_phis(times[i+1], y)
+            self.X1[self.time2index(i*self.step_size)+1,:] = Phi
+            self.X2[self.time2index(i*self.step_size)+1,:] = phi
 
         self.times = times
 
         return self.times, self.chopped_data()
 
     def chopped_data(self):
-        return self.data[self.time2index(0):-100,:,:].sum(axis=2)
+        return self.data[self.time2index(0):-100,:,:]
     
     def save(self, path):
         with open(path, "wb") as f:
