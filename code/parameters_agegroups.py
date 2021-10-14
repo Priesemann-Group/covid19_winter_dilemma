@@ -1,28 +1,81 @@
 import numpy as np
+import pandas as pd
+
+DEUparams = pd.read_csv('DEU_params.csv', sep=';',header=0)
 
 
-def get_params(country='Germany', modeltype='base', scenario='scenario2'):
-    mapping_raw = {'Germany':raw_deu, 'Czech':raw_cze, 'Denmark':raw_dsk, 'Portugal':raw_por}
-    mapping_params = {'Germany':{}, 'Czech':params_cze, 'Denmark':params_dsk, 'Portugal':params_por}
+def get_params(country='Germany', modeltype='base', scenario='scenario2', nr_ages=6):
+    #mapping_raw = {'Germany':raw_deu, 'Czech':raw_cze, 'Denmark':raw_dsk, 'Portugal':raw_por}
+    #mapping_params = {'Germany':{}, 'Czech':params_cze, 'Denmark':params_dsk, 'Portugal':params_por}
     params = params_base.copy()
-    params.update(mapping_params[country])
+    #params.update(mapping_params[country])
 
     mapping_modelparams = {'base':{}, 'ramp':params_ramp, 'logistic':params_logistic}
     params.update(mapping_modelparams[modeltype])
 
     params['Rt_base'] = Rtbase[scenario]
-
-    raw = mapping_raw[country]
-    return calc_y0(params, **raw)
-
-def calc_y0(params, V_raw, R_raw, cases, ICU, W_V, W_R, serop):
     
-    ICU_raw = ICU
+    allinitials = initials(params, nr_ages)
     
-    darkfigure = serop/(R_raw/1e6)
+    params.update({'y0':allinitials})
+    
+    for i in ['delta', 'Theta', 'Theta_ICU', 'gamma', 'gamma_ICU', 'alpha_R', 'alpha_u', 'alpha_w', 'chi_0', 'chi_1', 'u_base']:
+        params.update({i: np.array(DEUparams[i])})
+        
+    
+    return params 
+
+
+def initials(params, nr_ages):
+    y0allages = []
+    
+    for ag in range(nr_ages):
+        newparams = updateparams(params,ag)
+        inits = calc_y0(newparams, ag)
+        y0allages.append(inits)
+
+    
+    
+    return np.array(y0allages).flatten(order='F')
+
+
+def updateparams(params, agegroup):
+    agespecificparams = {
+        'delta': DEUparams.values[agegroup, 3],
+        'Theta': DEUparams.values[agegroup, 4],
+        'Theta_ICU': DEUparams.values[agegroup, 5],
+        'gamma': DEUparams.values[agegroup, 6],
+        'gamma_ICU': DEUparams.values[agegroup, 7],
+        'alpha_R': DEUparams.values[agegroup, 8],
+        'alpha_u': DEUparams.values[agegroup, 9],
+        'alpha_w': DEUparams.values[agegroup, 10],
+        'chi_0': DEUparams.values[agegroup, 11],
+        'chi_1': DEUparams.values[agegroup, 12],
+        'u_base': DEUparams.values[agegroup, 13],
+    }
+    
+    params.update(agespecificparams)
+    
+    return params
+    
+
+def calc_y0(params, agegroup):
+    Mi = DEUparams.values[agegroup, 1]
+    
+    V_raw = DEUparams.values[agegroup, 14]
+    R_raw = DEUparams.values[agegroup, 15]
+    cases = DEUparams.values[agegroup, 16]
+    ICU_raw = DEUparams.values[agegroup, 17]
+    W_V = DEUparams.values[agegroup, 18]
+    W_R = DEUparams.values[agegroup, 19]
+    serop = DEUparams.values[agegroup, 20]
+    
+    darkfigure = serop / (R_raw/1e6)
+
 
     RRv = darkfigure*(R_raw-W_R)
-    V = V_raw - W_V - RRv*(1- (V_raw-W_V)/1e6)
+
+    V = V_raw - W_V - RRv*((V_raw-W_V)/(Mi*1e6))
 
 
     Wn = darkfigure*W_R
@@ -31,61 +84,63 @@ def calc_y0(params, V_raw, R_raw, cases, ICU, W_V, W_R, serop):
     Etot = 1./params['rho']*cases*darkfigure
     Itot = 1./(params['gamma']+params['delta']+params['Theta'])* cases*darkfigure
 
-    S = 1e6 - Etot - Itot - ICU_raw - V_raw - R_raw*darkfigure
+    S = 1e6*Mi - Etot - Itot - ICU_raw - V - RRv - Wn - Wv
 
+    print('Sapprox:', S)
 
     Eimmune =  (1-params['eta'])*(V)
 
     En = (Wn)/(S+Wn+Wv+Eimmune)*Etot
     Ev = (Wv+Eimmune)/(S+Wn+Wv+Eimmune)*Etot
-    E = (1-(En+Ev)/Etot)*Etot
+    E = Etot - En - Ev
 
     In = (Wn)/(S+Wn+Wv+Eimmune)*Itot
     Iv = (Wv+Eimmune)/(S+Wn+Wv+Eimmune)*Itot
-    I = (1-(In+Iv)/Itot)*Itot
+    I = Itot - In -Iv
 
 
     ICUimmune = (1-params['kappa'])*(In+Iv)
 
     ICUv = Iv*(1-params['kappa'])/(I+ ICUimmune)*ICU_raw
-    ICU = (1-ICUv/ICU_raw)*ICU_raw
+    ICU = ICU_raw - ICUv
 
+    #Nur ne Approximation da Leute wegsterben in D
     Rimmune = S + Wn + Wv + (1-params['eta'])*V
 
     R = RRv * (S + Wn)/Rimmune
-    Rv = (1-R/RRv)*RRv
-
+    Rv = RRv - R
 
 
     y0= {
-        'V': V,
-        'Wn': Wn,
-        'Wv': Wv,
-        'E': E,
-        'EBn': En,
-        'EBv': Ev,
-        'I': I,
-        'IBn': In,
-        'IBv': Iv,
-        'ICU': ICU,
-        'ICUv': ICUv,
-        'R': R,
-        'Rv': Rv,
-        'UC': V_raw,
-        'WC': 0.,
-        'D': 0.,
-        'C': 0.,
-    }
+            'V': V,
+            'Wn': Wn,
+            'Wv': Wv,
+            'E': E,
+            'EBn': En,
+            'EBv': Ev,
+            'I': I,
+            'IBn': In,
+            'IBv': Iv,
+            'ICU': ICU,
+            'ICUv': ICUv,
+            'R': R,
+            'Rv': Rv,
+            'UC': V_raw,
+            'WC': 0.,
+            'D': 0.,
+            'C': 0.,
+        }
 
-    S = 1e6 - (sum(list(y0.values()))-y0['UC'])
+
+    S = Mi*1e6 - (sum(y0.values())-y0['UC'])
+
 
     y0.update({'S':S})
     
     y0_array = [y0['S'],y0['V'],y0['Wn'],y0['Wv'],y0['E'],y0['EBn'],y0['EBv'],y0['I'],y0['IBn'],y0['IBv'],
                 y0['ICU'],y0['ICUv'],y0['R'],y0['Rv'],y0['UC'],y0['WC'],y0['D'],y0['C']]
-    params['y0'] = np.array([10*[i/10.] for i in y0_array]).flatten() # fake agegroups
-
-    return params
+    
+    return y0_array
 
 
 # Values from OWD
@@ -189,8 +244,8 @@ params_por = {
 }
 
 params_ramp = {
-    'time_u':14.,
-    'time_w':14.,
+    'time_u':7.,
+    'time_w':7.,
 }
 
 params_logistic = {
@@ -203,7 +258,3 @@ Rtbase = {
     'scenario2':3.75,
     'scenario3':2.5,
 }
-
-
-#Sweep range for the alphas:
-alpharange=np.round(np.linspace(1/50, 1/400, 100), decimals=4)
