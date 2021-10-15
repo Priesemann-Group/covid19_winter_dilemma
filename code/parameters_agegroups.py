@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-DEUparams = pd.read_csv('DEU_params.csv', sep=';',header=0)
+DEUparams = pd.read_csv('../parameters/DEU_params.csv', sep=';',header=0)
 
 
 def get_params(country='Germany', modeltype='base', scenario='scenario2', nr_ages=6):
@@ -22,6 +22,7 @@ def get_params(country='Germany', modeltype='base', scenario='scenario2', nr_age
     for i in ['delta', 'Theta', 'Theta_ICU', 'gamma', 'gamma_ICU', 'alpha_R', 'alpha_u', 'alpha_w', 'chi_0', 'chi_1', 'u_base']:
         params.update({i: np.array(DEUparams[i])})
         
+    params.update({'CM': CM_uniform})
     
     return params 
 
@@ -258,3 +259,12 @@ Rtbase = {
     'scenario2':3.75,
     'scenario3':2.5,
 }
+
+CM_DEU = np.array([[0.11379518, 0.12928566, 0.09578086, 0.07168928, 0.04753613, 0.03652391],
+[0.20671978, 0.13455128, 0.17471492, 0.09173655, 0.05707505, 0.0366261],
+[0.09233393, 0.13444288, 0.17963023, 0.18572315, 0.11123063, 0.0440081],
+[0.06793128, 0.05804828, 0.14403942, 0.38214947, 0.28185652, 0.12505345],
+[0.05425213, 0.04132636, 0.10075469, 0.34296702, 0.35412762, 0.15467227],
+[0.05417458, 0.03423004, 0.05199785, 0.19549228, 0.19778876, 0.69455006]])
+
+CM_uniform = 1/6*np.ones([6,6])

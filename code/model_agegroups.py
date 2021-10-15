@@ -26,7 +26,7 @@ class Model:
         Theta, Theta_ICU,
         influx,
         time_u, time_w,
-        epsilon_free,
+        epsilon_free, CM,
     ):
         self.y0 = y0
         self.Rt_base = Rt_base
@@ -68,6 +68,7 @@ class Model:
         self.time_u = time_u
         self.time_w = time_w
         self.epsilon_free = epsilon_free
+        self.CM = CM
 
         self.eqs = 18           # number equations
         self.ags = len(y0)//self.eqs  # number agegroups
@@ -104,7 +105,7 @@ class Model:
         return (d*g).sum()*self.step_size
 
     def I_eff(self, I, IBn, IBv):
-        return (I + self.sigma*(IBn+IBv)).sum() + self.influx
+        return (I + self.sigma*(IBn+IBv)) + self.influx*self.M/self.M.sum()
 
     def Gamma(self, t):
         return 1 + self.mu*np.cos(2*np.pi*(t+self.d_0-self.d_mu)/360.)
@@ -170,7 +171,10 @@ class Model:
         omega_v = self.omega_v(t, I, IBn, IBv)
         Phi = self.Phi(t, UC, (S+Wn)/(M-UC))
         phi = self.phi(t, UC, WC, (Wv)/(UC-WC))
-        infect = gamma*Rt*I_eff/M.sum()
+        CM = self.CM
+        
+        #infect = gamma*Rt*I_eff/M.sum()
+        infect = gamma*Rt * np.matmul(CM.transpose(), I_eff/M )
 
 
         # differential equations
