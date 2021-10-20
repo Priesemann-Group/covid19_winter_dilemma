@@ -27,6 +27,7 @@ class Model:
         influx,
         time_u, time_w,
         epsilon_free, CM,
+        w_ICU,
     ):
         self.y0 = y0
         self.Rt_base = Rt_base
@@ -69,6 +70,7 @@ class Model:
         self.time_w = time_w
         self.epsilon_free = epsilon_free
         self.CM = CM
+        self.w_ICU = w_ICU
 
         self.eqs = 18           # number equations
         self.ags = len(y0)//self.eqs  # number agegroups
@@ -86,23 +88,21 @@ class Model:
     def time2index(self, t):
         return round((t+self.t_min)/self.step_size)
 
-    def H_Rt(self, t):
+    def H(self,t,tau,a,b):
         x = -np.arange(-self.gamma_cutoff,0,self.step_size)
-        d = self.data[self.time2index(t-self.gamma_cutoff):self.time2index(t),10:12].sum(axis=(1,2))
-        g = g = self.b_Rt**self.a_Rt*x**(self.a_Rt-1)*np.e**(-self.b_Rt*x)/gamma_func(self.a_Rt)
-        return (d*g).sum()*self.step_size
+        d = self.data[self.time2index(t-self.gamma_cutoff-tau):self.time2index(t-tau),10:12].sum(axis=1)
+        d = (1-self.w_ICU) * d.sum(axis=1) / (self.M.sum()/1e6) + (self.w_ICU * d / (self.M/1e6)).transpose()
+        g = b**a * x**(a-1) * np.e**(-b*x)/gamma_func(a)
+        return (d*g).sum(axis=1)*self.step_size
+
+    def H_Rt(self, t):
+        return self.H(t, 0, self.a_Rt, self.b_Rt)
 
     def H_vac1(self, t):
-        x = -np.arange(-self.gamma_cutoff,0,self.step_size)
-        d = self.data[self.time2index(t-self.gamma_cutoff-self.tau_vac1):self.time2index(t-self.tau_vac1),10:12].sum(axis=(1,2))
-        g = g = self.b_vac**self.a_vac*x**(self.a_vac-1)*np.e**(-self.b_vac*x)/gamma_func(self.a_vac)
-        return (d*g).sum()*self.step_size
+        return self.H(t, self.tau_vac1, self.a_vac, self.b_vac)
 
     def H_vac2(self, t):
-        x = -np.arange(-self.gamma_cutoff,0,self.step_size)
-        d = self.data[self.time2index(t-self.gamma_cutoff-self.tau_vac2):self.time2index(t-self.tau_vac2),10:12].sum(axis=(1,2))
-        g = g = self.b_vac**self.a_vac*x**(self.a_vac-1)*np.e**(-self.b_vac*x)/gamma_func(self.a_vac)
-        return (d*g).sum()*self.step_size
+        return self.H(t, self.tau_vac2, self.a_vac, self.b_vac)
 
     def I_eff(self, I, IBn, IBv):
         return (I + self.sigma*(IBn+IBv)) + self.influx*self.M/self.M.sum()
@@ -146,10 +146,10 @@ class Model:
         return Phi, phi
 
     def omega_v(self, t, I, IBn, IBv):
-        return self.omega_v_b#*(1-1/(1+np.exp(-self.c_v*self.Rt(t)*self.I_eff(I,IBn,IBv))))*2
+        return self.omega_v_b*(1-1/(1+np.exp(-self.c_v*self.Rt(t)*self.I_eff(I,IBn,IBv))))*2
 
     def omega_n(self, t, I, IBn, IBv):
-        return self.omega_n_b#*(1-1/(1+np.exp(-self.c_v*self.Rt(t)*self.I_eff(I,IBn,IBv))))*2
+        return self.omega_n_b*(1-1/(1+np.exp(-self.c_v*self.Rt(t)*self.I_eff(I,IBn,IBv))))*2
 
     def fun(self, t, y):
         y.reshape([self.eqs,self.ags])
