@@ -27,7 +27,7 @@ class Model:
         influx,
         time_u, time_w,
         epsilon_free, CM,
-        w_ICU,
+        w_ICU, fractions, plateaus, slopes
     ):
         self.y0 = y0
         self.Rt_base = Rt_base
@@ -71,6 +71,10 @@ class Model:
         self.epsilon_free = epsilon_free
         self.CM = CM
         self.w_ICU = w_ICU
+        self.fractions = fractions
+        self.plateaus = plateaus
+        self.slopes = slopes
+
 
         self.eqs = 18           # number equations
         self.ags = len(y0)//self.eqs  # number agegroups
@@ -118,9 +122,20 @@ class Model:
         else:
             return self.Rt_base + (self.Rt_free-self.Rt_base)*(t-180+self.epsilon_free)/2/self.epsilon_free
 
-    def Rt(self, t):
-        return self.R_0(t)*np.exp(-self.alpha_R*self.H_Rt(t)-self.e_R) * self.Gamma(t) /self.Gamma(360-self.d_0)
-
+    #Reproduction Number Old    
+    #def Rt(self, t):
+     #   return self.R_0(t)*np.exp(-self.alpha_R*self.H_Rt(t)-self.e_R) * self.Gamma(t) /self.Gamma(360-self.d_0)
+    
+    #Reproduction number new 
+    
+    #Cosmo Data fit 
+    def selfregulation(self, t):
+        return self.plateaus - self.slopes*1*np.log(np.e**(1/1*(35-self.H_Rt(t)))+1)
+        
+    # We subtract 2.5 and divide by 2.5 such that we project (2.5,5) -> (0,1) 
+    def Rt(self,t):
+        return self.R_0(t) * (1-self.fractions*(self.selfregulation(t)-2.5)/2.5) * self.Gamma(t) /self.Gamma(360-self.d_0)
+            
     def u_w(self, t):
         return self.u_base + (self.u_max-self.u_base)*(1-np.exp(-self.alpha_u*self.H_vac1(t)-self.e_u))
 
