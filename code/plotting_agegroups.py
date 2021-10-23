@@ -120,7 +120,6 @@ def overview(model, path=None, silent=False, arial=False):
 
 def overview_agegroups(model, path=None, silent=False, arial=False):
     set_rcParams(arial=arial)
-    mpl.rcParams["legend.fontsize"] = 7
     t = model.times
     M = model.M
     data = model.chopped_data().sum(axis=2)
@@ -130,24 +129,28 @@ def overview_agegroups(model, path=None, silent=False, arial=False):
     colors = mpl.cm.viridis_r(np.linspace(0.,1.,ags))
 
 
-    fig = plt.figure(figsize=(6, 7), constrained_layout=True)
+    fig = plt.figure(figsize=(8, 7), constrained_layout=True)
     grid = fig.add_gridspec(ncols=3, nrows=4, hspace=0.1, wspace=0.1)
     
+
     ax1 = fig.add_subplot(grid[0])
-    ax2 = fig.add_subplot(grid[1],sharex=ax1, sharey=ax1)
-    ax3 = fig.add_subplot(grid[2],sharex=ax1, sharey=ax1)
+    ax2 = fig.add_subplot(grid[1],sharex=ax1)
+    ax3 = fig.add_subplot(grid[2])
     ax4 = fig.add_subplot(grid[3],sharex=ax1)
-    ax5 = fig.add_subplot(grid[4],sharex=ax1, sharey=ax4)
-    ax6 = fig.add_subplot(grid[5],sharex=ax1, sharey=ax4)
+    ax5 = fig.add_subplot(grid[4],sharex=ax1)
+    ax6 = fig.add_subplot(grid[5],sharex=ax1)
     ax7 = fig.add_subplot(grid[6],sharex=ax1)
     ax8 = fig.add_subplot(grid[7],sharex=ax1, sharey=ax7)
     ax9 = fig.add_subplot(grid[8],sharex=ax1, sharey=ax7)
     ax10 = fig.add_subplot(grid[9],sharex=ax1)
-    ax11 = fig.add_subplot(grid[10],sharex=ax1, sharey=ax10)
-    ax12 = fig.add_subplot(grid[11],sharex=ax1, sharey=ax10)
+    ax11 = fig.add_subplot(grid[10],sharex=ax1)
+    ax12 = fig.add_subplot(grid[11],sharex=ax1)
 
-    axs = [ax1,ax2,ax3,ax4,ax5,ax6,ax7,ax8,ax9,ax10,ax11,ax12]
-    titles = ['S','V','W','E','EBn','EBv','ICU','ICUv','dD','vac 1a','vac 2','vac total']
+    axs = [ax1,ax2,ax4,ax5,ax6,ax7,ax8,ax9,ax10,ax11,ax12]
+#    titles = ['Incidence','Breakthrough share\nof incidence','',
+#              'ICU occupancy','Breakthrough share\nnof ICU occupancy','Daily new deaths',
+#              'Susceptible','Immune (vac.+natural)','Waned immunity',
+#              'vac 1a','vac 2','vac total']
 
     # (S,V,Wn,Wv,E,EBn,EBv,I,IBn,IBv,ICU,ICUv,R,Rv,UC,WC,D,C)
 
@@ -169,94 +172,61 @@ def overview_agegroups(model, path=None, silent=False, arial=False):
 
 
     for ag in range(ags):
-        ax1.plot(t,AGdata[:,0,ag]/M[ag], color=colors[ag])
-        ax2.plot(t,AGdata[:,1,ag]/M[ag], color=colors[ag])
-        ax3.plot(t,(AGdata[:,2,ag]+AGdata[:,3,ag])/M[ag], color=colors[ag])
-        ax4.plot(t,AGdata[:,4,ag], color=colors[ag])
-        ax5.plot(t,AGdata[:,5,ag], color=colors[ag])
-        ax6.plot(t,AGdata[:,6,ag], color=colors[ag])
-        ax7.plot(t,AGdata[:,10,ag], color=colors[ag])
-        ax8.plot(t,AGdata[:,11,ag], color=colors[ag])
-        ax9.plot(t,dD[:,ag], color=colors[ag])
-        ax10.plot(t,d1a[:,ag], color=colors[ag])
-        ax11.plot(t,d2[:,ag], color=colors[ag])
+        ax1.plot(t,model.rho*(AGdata[:,4,ag]+AGdata[:,5,ag]+AGdata[:,6,ag])/(M[ag]/1e6), color=colors[ag])
+        ax2.plot(t,(AGdata[:,6,ag])/(AGdata[:,4,ag]+AGdata[:,5,ag]+AGdata[:,6,ag]), color=colors[ag])
+        # ax3 legend
+        ax4.plot(t,(AGdata[:,10,ag]+AGdata[:,11,ag])/(M[ag]/1e6), color=colors[ag])
+        ax5.plot(t,AGdata[:,11,ag]/(AGdata[:,10,ag]+AGdata[:,11,ag]), color=colors[ag])
+        ax6.plot(t,dD[:,ag]/(M[ag]/1e6), color=colors[ag])
+        ax7.plot(t,AGdata[:,0,ag]/M[ag], color=colors[ag])
+        ax8.plot(t,(AGdata[:,1,ag]+AGdata[:,12,ag]+AGdata[:,13,ag])/M[ag], color=colors[ag])
+        ax9.plot(t,(AGdata[:,2,ag]+AGdata[:,3,ag])/M[ag], color=colors[ag])
+        ax10.plot(t,d1a[:,ag]/(M[ag]/1e6), color=colors[ag])
+        ax11.plot(t,d2[:,ag]/(M[ag]/1e6), color=colors[ag])
         ax12.plot(t,(d1a[:,ag]+d1b[:,ag]+d2[:,ag]), color=colors[ag])
 
     for i,ax in enumerate(axs):
-        ax.set_title(titles[i])
+#        ax.set_title(titles[i])
         ax.set_ylim(0,None)
 
-    for ax in [ax1,ax2,ax3]:
+    ax1.set_ylabel("Daily new cases\nper million in age group")
+    ax2.set_ylabel("Breakthrough share\nof daily new cases")
+    #ax3 legend
+    ax4.set_ylabel("ICU occupancy\nper million in age group")
+    ax5.set_ylabel("Breakthrough share\nof ICU occupancy")
+    ax6.set_ylabel("Daily new deaths\nper million in age group")
+    ax7.set_ylabel("Susceptible fraction\nof the population")
+    ax8.set_ylabel("Immune fraction\nof the population")
+    ax9.set_ylabel("Waned immune fraction\nof the population")
+    ax10.set_ylabel("Daily first-time vac.\nper million in age group")
+    ax11.set_ylabel("Daily booster vac.\nper million in age group")
+    ax12.set_ylabel("Daily total vac.\nper million of population")
+
+    ax1.set_xticks([45, 135, 45+2*90, 45+3*90])
+    ax1.set_xticklabels(['Oct.','Jan.','Apr.','July'])
+
+    for ax in [ax2,ax5,ax7,ax8,ax9]:
         ax.set_ylim(0,1)
 
-    for ax in [ax2,ax3,ax5,ax6,ax8,ax9,ax11,ax12]:
-        plt.setp(ax.get_yticklabels(), visible=False)
+    for ax in axs:
+        ax.axvline(180, ls=':', color='#ADB6B6FF', zorder=0)
+        ax.set_xlabel('2021            2022')
 
+#    for ax in [ax2,ax3,ax5,ax6,ax8,ax9,ax11,ax12]:
+#        plt.setp(ax.get_yticklabels(), visible=False)
 
-#    ax1.plot(t,data[:,0]/1e6,label="S")
-#    ax1.plot(t,data[:,1]/1e6,label="V")
-#    ax1.plot(t,data[:,2]/1e6,label="Wn")
-#    ax1.plot(t,data[:,3]/1e6,label="Wv")
-#    ax1.plot(t,data[:,12]/1e6,label="R")
-#    ax1.plot(t,data[:,13]/1e6,label="Rv")
-#    ax1.set_ylim(0,None)
-#    ax1.set_ylabel("fraction of population")
-#    ax1.legend(loc='upper left', ncol=2, handlelength=1.)
-    
-#    ax2.plot(t,data[:,4],label="E")
-#    ax2.plot(t,data[:,5],label="EBn")
-#    ax2.plot(t,data[:,6],label="EBv")
-#    ax2.set_ylim(0,None)
-#    ax2.legend(loc='upper left', ncol=2, handlelength=1.)
-    
-#    ax3.plot(t,data[:,10],label="ICU")
-#    ax3.plot(t,data[:,11],label="ICUv")
-#    ax3.plot(t,list(map(model.H_Rt, t)), label="H_Rt")
-#    ax3.plot(t,list(map(model.H_vac1, t)), label="H_vac1")
-#    ax3.plot(t,list(map(model.H_vac2, t)), label="H_vac2")
-#    ax3.set_ylim(0,None)
-#    ax3.legend(loc='upper left', ncol=2, handlelength=1.)
-    
-#    ax4.plot(t, list(map(model.Rt, t)), label='Rt')
-#    ax4.plot(t, list(map(model.Gamma, t)), label='season.')
-#    ax4.plot(t, list(map(model.R_0, t)), label='R_0')
-#    ax4.set_ylabel("reproduction number")
-#    ax4.legend(loc='upper left', ncol=2, handlelength=1.)
-    
-#    ax5.plot(t, list(map(model.u_w, t)), label='u_w')
-#    ax5.plot(t, data[:,14]/model.M.sum(), label='u_c')
-#    ax5.plot(t, list(map(model.w_w, t)), label='w_w')
-#    ax5.plot(t, data[:,15]/data[:,14], label='w_c')
-#    ax5.set_ylim(0,None)
-#    ax5.set_xlabel("days")
-#    ax5.set_ylabel("fraction of population")
-#    ax5.legend(loc='upper left', ncol=2, handlelength=1.)
-    
-#    d1a = (np.array(list(map(model.Phi, t+model.tau_vac1, AGdata[:,14,:])))).sum(axis=1)
-#    d1b = (np.array(list(map(model.Phi, t+model.tau_vac1/2., AGdata[:,14,:])))).sum(axis=1)
-#    d2 = (np.array(list(map(model.phi, t+model.tau_vac2, AGdata[:,14,:], AGdata[:,15,:])))).sum(axis=1)
-#    ax6.plot(t, d1a, label='1.dose A')
-#    ax6.plot(t, d1b, label='1.dose B')
-#    phis = np.array(list(map(model.get_phis, t, AGdata))).sum(axis=(2,3))
-#    shift = round(model.tau_vac1/model.step_size)
-#    d1a = np.roll(phis[:,0], -shift)
-#    d1a[-shift:] = 0
-#    shift = round(model.tau_vac1/2./model.step_size)
-#    d1b = np.roll(phis[:,0], -shift)
-#    d1b[-shift:] = 0
-#    shift = round(model.tau_vac2/model.step_size)
-#    d2 = np.roll(phis[:,1], -shift)
-#    d2[-shift:] = 0
-#    ax6.plot(t, d1a, label='1.dose A')
-#    ax6.plot(t, d1b, label='1.dose B')
-#    ax6.plot(t, d2, label='2.dose')
-#    ax6.set_ylim(0,None)
-#    ax6.set_ylabel("daily vaccinations")
-#    ax6.legend(loc='upper left', ncol=2, handlelength=1.)
-    
-#    for ax in [ax1,ax2,ax3,ax4,ax5,ax6]:
-#        l,u = ax.get_ylim()
-#        ax.set_ylim(l,u+0.4*(u-l))
+    # Build Legend in Panel 3
+    ax3.get_xaxis().set_visible(False)
+    ax3.get_yaxis().set_visible(False)
+    ax3.spines['left'].set_visible(False)
+    ax3.spines['bottom'].set_visible(False)
+    handles = [mpl.lines.Line2D([], [], color=colors[0], label='0-19'),
+               mpl.lines.Line2D([], [], color=colors[1], label='20-39'),
+               mpl.lines.Line2D([], [], color=colors[2], label='40-59'),
+               mpl.lines.Line2D([], [], color=colors[3], label='60-69'),
+               mpl.lines.Line2D([], [], color=colors[4], label='70-79'),
+               mpl.lines.Line2D([], [], color=colors[5], label='80+')]
+    ax3.legend(handles=handles, title='Age groups', loc='upper center', ncol=1, frameon=True)
     
     fig.align_ylabels()
     
@@ -293,16 +263,17 @@ def sixpanels(models, path=None, silent=False, arial=False, ICUcap=None, full_wa
         'line':'#ADB6B6FF', 'ICUcap':'#FFAAAA',
         'now':'#ADB6B6FF', 'nowL':'#FFFFFFFF',
 #        'now':'#93dfedFF', 'nowL':'#93dfed99',
+        'FW':'#ED0000FF',
     }
-    main_colors = [colors['low'],colors['mid'],colors['high']]
-    main_colors_L = [colors['lowL'],colors['midL'],colors['highL']]
+    main_colors = [colors['high'],colors['mid'],colors['low']]
+    main_colors_L = [colors['highL'],colors['midL'],colors['lowL']]
 
 
 
 #    ax1.plot(t[1800:], np.ones(1800), color=colors['free'])
     
     for i,m in enumerate([m1,m2,m3]):
-        ax1.plot(t, np.array(list(map(m.R_0, t)))/m.Rt_free, color=main_colors[i])
+        ax1.plot(t, np.array(list(map(m.Rt, t)))/m.Rt_free, color=main_colors[i])
         ax2.plot(t, m.rho*(data[i][:,4]+data[i][:,5]+data[i][:,6]), color=main_colors[i])
         ax3.plot(t, data[i][:,10]+data[i][:,11], color=main_colors[i])
 
@@ -325,7 +296,7 @@ def sixpanels(models, path=None, silent=False, arial=False, ICUcap=None, full_wa
 
     offset = 0.5
     for i in [2,4]:
-        for ab,m,j in zip([0.5,0,-0.5],[m1,m2,m3],[0,1,2]):
+        for ab,m,j in zip([-0.5,0,0.5],[m1,m2,m3],[0,1,2]):
             ax5.bar(offset+i+ab, data[j][900*i-1,1]/1e6, 0.5,  
                 align='center', color=main_colors[j], edgecolor='black', zorder=-1)
             ax5.bar(offset+i+ab, (data[j][900*i-1,12]+data[j][900*i-1,13])/1e6, 0.5,
@@ -348,7 +319,7 @@ def sixpanels(models, path=None, silent=False, arial=False, ICUcap=None, full_wa
     ax5.set_ylim(0,1)
     ax6.set_ylim(0,None)
 
-    ax5.set_yticks([0.,0.25,0.5,0.75,1.])
+#    ax5.set_yticks([0.,0.25,0.5,0.75,1.])
 
     ax1.set_ylabel("Contact levels\ninfluenced by NPIs")
     ax2.set_ylabel("Daily new cases\nper million")
@@ -382,8 +353,10 @@ def sixpanels(models, path=None, silent=False, arial=False, ICUcap=None, full_wa
     if full_wave != None:
         m = full_wave
         d = m.chopped_data().sum(axis=2)
-        ax2.plot(t, m.rho*(d[:,4]+d[:,5]+d[:,6]), color='red', ls=':')
-        ax3.plot(t, d[:,10]+d[:,11], color='red', ls=':')
+        ax2.plot(t, m.rho*(d[:,4]+d[:,5]+d[:,6]), color=colors['FW'], ls=':')
+        ax3.plot(t, d[:,10]+d[:,11], color=colors['FW'], ls=':')
+        ax2.text(0.58,0.72,'Full wave', size=7, color=colors['FW'], transform=ax2.transAxes)
+        ax3.text(0.58,0.72,'Full wave', size=7, color=colors['FW'], transform=ax3.transAxes)
 
     ax1.set_xticks([45, 135, 45+2*90, 45+3*90])
     ax1.set_xticklabels(['Oct.','Jan.','Apr.','July'])

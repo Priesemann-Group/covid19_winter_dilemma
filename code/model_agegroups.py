@@ -26,8 +26,11 @@ class Model:
         Theta, Theta_ICU,
         influx,
         time_u, time_w,
-        epsilon_free, CM,
-        w_ICU, fractions, plateaus, slopes
+        epsilon_free,
+        CM, C_base, C_npi_base, C_npi_free, C_vol,
+        w_ICU,
+        fractions, plateaus, slopes,
+        feedback_off
     ):
         self.y0 = y0
         self.Rt_base = Rt_base
@@ -69,11 +72,15 @@ class Model:
         self.time_u = time_u
         self.time_w = time_w
         self.epsilon_free = epsilon_free
-        self.CM = CM
+        self.C_base = C_base
+        self.C_npi_base = C_npi_base
+        self.C_npi_free = C_npi_free
+        self.C_vol = C_vol
         self.w_ICU = w_ICU
         self.fractions = fractions
         self.plateaus = plateaus
         self.slopes = slopes
+        self.feedback_off = feedback_off
 
 
         self.eqs = 18           # number equations
@@ -122,6 +129,14 @@ class Model:
         else:
             return self.Rt_base + (self.Rt_free-self.Rt_base)*(t-180+self.epsilon_free)/2/self.epsilon_free
 
+    def C_npi(self, t):
+        if t<180-self.epsilon_free:
+            return self.C_npi_base
+        if t>180+self.epsilon_free:
+            return self.C_npi_free
+        else:
+            return self.C_npi_base + (self.C_npi_free-self.C_npi_base)*(t-180+self.epsilon_free)/2/self.epsilon_free
+
     #Reproduction Number Old    
     #def Rt(self, t):
      #   return self.R_0(t)*np.exp(-self.alpha_R*self.H_Rt(t)-self.e_R) * self.Gamma(t) /self.Gamma(360-self.d_0)
@@ -131,10 +146,16 @@ class Model:
     #Cosmo Data fit 
     def selfregulation(self, t):
         return self.plateaus - self.slopes*1*np.log(np.e**(1/1*(35-self.H_Rt(t)))+1)
+
+    def alpha_vol(self,t):
+        return (1-(self.selfregulation(t)-2.5)/2.5)
         
     # We subtract 2.5 and divide by 2.5 such that we project (2.5,5) -> (0,1) 
-    def Rt(self,t):
-        return self.R_0(t) * (1-self.fractions*(self.selfregulation(t)-2.5)/2.5) * self.Gamma(t) /self.Gamma(360-self.d_0)
+#    def Rt(self,t):
+#        return self.R_0(t) * (1-self.fractions*(self.selfregulation(t)-2.5)/2.5) * self.Gamma(t) /self.Gamma(360-self.d_0)
+
+    def Rt(self, t): # not directly used in the code, for plotting only
+        return self.Rt_free * max(np.linalg.eigvals(self.C_base + self.C_npi(t) + self.C_vol))
             
     def u_w(self, t):
         return self.u_base + (self.u_max-self.u_base)*(1-np.exp(-self.alpha_u*self.H_vac1(t)-self.e_u))
@@ -186,10 +207,12 @@ class Model:
         omega_v = self.omega_v(t, I, IBn, IBv)
         Phi = self.Phi(t, UC, (S+Wn)/(M-UC))
         phi = self.phi(t, UC, WC, (Wv)/(UC-WC))
-        CM = self.CM
+        #CM = self.CM
+        CM = self.C_base + self.C_npi(t) + np.maximum(self.alpha_vol(t),self.feedback_off)*self.C_vol
         
         #infect = gamma*Rt*I_eff/M.sum()
-        infect = gamma*Rt * np.matmul(CM.transpose(), I_eff/M )
+        #infect = gamma*Rt * np.matmul(CM.transpose(), I_eff/M )
+        infect = gamma*self.Rt_free * np.matmul(CM, I_eff/M)
 
 
         # differential equations
