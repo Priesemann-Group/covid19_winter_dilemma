@@ -7,8 +7,7 @@ import pickle
 class Model:
     def __init__(
         self,
-        y0,
-        Rt_base, Rt_free,
+        y0, R0,
         eta, kappa, sigma,
         gamma, gamma_ICU,
         delta,
@@ -27,14 +26,13 @@ class Model:
         influx,
         time_u, time_w,
         epsilon_free,
-        CM, C_base, C_npi_base, C_npi_free, C_vol,
+        C_base, C_npi_base, C_npi_free, C_vol,
         w_ICU,
-        fractions, plateaus, slopes,
-        feedback_off
+        plateaus, slopes,
+        feedback_off, mappingparam, fit_ICUcap, fit_epsilon
     ):
         self.y0 = y0
-        self.Rt_base = Rt_base
-        self.Rt_free = Rt_free
+        self.R0 = R0
         self.eta = eta
         self.kappa = kappa
         self.sigma = sigma
@@ -77,10 +75,12 @@ class Model:
         self.C_npi_free = C_npi_free
         self.C_vol = C_vol
         self.w_ICU = w_ICU
-        self.fractions = fractions
         self.plateaus = plateaus
         self.slopes = slopes
         self.feedback_off = feedback_off
+        self.mappingparam = mappingparam
+        self.fit_ICUcap = fit_ICUcap
+        self.fit_epsilon = fit_epsilon
 
 
         self.eqs = 18           # number equations
@@ -121,13 +121,6 @@ class Model:
     def Gamma(self, t):
         return 1 + self.mu*np.cos(2*np.pi*(t+self.d_0-self.d_mu)/360.)
 
-    def R_0(self, t):
-        if t<180-self.epsilon_free:
-            return self.Rt_base
-        if t>180+self.epsilon_free:
-            return self.Rt_free
-        else:
-            return self.Rt_base + (self.Rt_free-self.Rt_base)*(t-180+self.epsilon_free)/2/self.epsilon_free
 
     def C_npi(self, t):
         if t<180-self.epsilon_free:
@@ -141,21 +134,18 @@ class Model:
     #def Rt(self, t):
      #   return self.R_0(t)*np.exp(-self.alpha_R*self.H_Rt(t)-self.e_R) * self.Gamma(t) /self.Gamma(360-self.d_0)
     
-    #Reproduction number new 
+
     
     #Cosmo Data fit 
     def selfregulation(self, t):
-        return self.plateaus - self.slopes*1*np.log(np.e**(1/1*(35-self.H_Rt(t)))+1)
+        return self.plateaus - self.slopes*self.fit_epsilon*np.log(np.e**(1/self.fit_epsilon*(self.fit_ICUcap-self.H_Rt(t)))+1)
 
     def alpha_vol(self,t):
-        return (1-(self.selfregulation(t)-2.5)/2.5)
+        return (1-(self.selfregulation(t)-self.mappingparam)/(5-self.mappingparam))
         
-    # We subtract 2.5 and divide by 2.5 such that we project (2.5,5) -> (0,1) 
-#    def Rt(self,t):
-#        return self.R_0(t) * (1-self.fractions*(self.selfregulation(t)-2.5)/2.5) * self.Gamma(t) /self.Gamma(360-self.d_0)
 
     def Rt(self, t): # not directly used in the code, for plotting only
-        return self.Rt_free * max(np.linalg.eigvals(self.C_base + self.C_npi(t) + self.C_vol))
+        return self.R0 * max(np.linalg.eigvals(self.C_base + self.C_npi(t) + self.C_vol))
             
     def u_w(self, t):
         return self.u_base + (self.u_max-self.u_base)*(1-np.exp(-self.alpha_u*self.H_vac1(t)-self.e_u))
@@ -181,11 +171,12 @@ class Model:
 #            phi /= ratio
         return Phi, phi
 
+    # ACHTUNG: No reduced waning for high incidences at the moment
     def omega_v(self, t, I, IBn, IBv):
-        return self.omega_v_b*(1-1/(1+np.exp(-self.c_v*self.Rt(t)*self.I_eff(I,IBn,IBv))))*2
+        return self.omega_v_b#*(1-1/(1+np.exp(-self.c_v*self.Rt(t)*self.I_eff(I,IBn,IBv))))*2
 
     def omega_n(self, t, I, IBn, IBv):
-        return self.omega_n_b*(1-1/(1+np.exp(-self.c_v*self.Rt(t)*self.I_eff(I,IBn,IBv))))*2
+        return self.omega_n_b#*(1-1/(1+np.exp(-self.c_v*self.Rt(t)*self.I_eff(I,IBn,IBv))))*2
 
     def fun(self, t, y):
         y.reshape([self.eqs,self.ags])
@@ -207,12 +198,13 @@ class Model:
         omega_v = self.omega_v(t, I, IBn, IBv)
         Phi = self.Phi(t, UC, (S+Wn)/(M-UC))
         phi = self.phi(t, UC, WC, (Wv)/(UC-WC))
-        #CM = self.CM
+        
+        
+        #Effective time dependent contact matrix
         CM = self.C_base + self.C_npi(t) + np.maximum(self.alpha_vol(t),self.feedback_off)*self.C_vol
         
-        #infect = gamma*Rt*I_eff/M.sum()
-        #infect = gamma*Rt * np.matmul(CM.transpose(), I_eff/M )
-        infect = gamma*self.Rt_free * np.matmul(CM, I_eff/M)
+        #transposed the thing because its symmetric anyways atm and before that we tranposed it. Have to check it again
+        infect = gamma*self.R0*self.Gamma(t) * np.matmul(CM.transpose(), I_eff/M)
 
 
         # differential equations

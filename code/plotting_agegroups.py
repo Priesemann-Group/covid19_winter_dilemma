@@ -72,7 +72,6 @@ def overview(model, path=None, silent=False, arial=False):
     
     ax4.plot(t, list(map(model.Rt, t)), label='Rt')
     ax4.plot(t, list(map(model.Gamma, t)), label='season.')
-    ax4.plot(t, list(map(model.R_0, t)), label='R_0')
     ax4.set_ylabel("reproduction number")
     ax4.legend(loc='upper left', ncol=2, handlelength=1.)
     
@@ -273,7 +272,7 @@ def sixpanels(models, path=None, silent=False, arial=False, ICUcap=None, full_wa
 #    ax1.plot(t[1800:], np.ones(1800), color=colors['free'])
     
     for i,m in enumerate([m1,m2,m3]):
-        ax1.plot(t, np.array(list(map(m.Rt, t)))/m.Rt_free, color=main_colors[i])
+        ax1.plot(t, np.array(list(map(m.Rt, t)))/m.R0, color=main_colors[i])
         ax2.plot(t, m.rho*(data[i][:,4]+data[i][:,5]+data[i][:,6]), color=main_colors[i])
         ax3.plot(t, data[i][:,10]+data[i][:,11], color=main_colors[i])
 
@@ -330,10 +329,10 @@ def sixpanels(models, path=None, silent=False, arial=False, ICUcap=None, full_wa
     ax6.set_ylabel("Total deaths\nper million")
 
     #Panel 1
-    ax1.text(0,m1.Rt_base/5+0.05,'Scenario 3', size=7, color=colors['low'])
-    ax1.text(0,m2.Rt_base/5+0.05,'Scenario 2', size=7, color=colors['mid'])
-    ax1.text(0,m3.Rt_base/5+0.05,'Scenario 1', size=7, color=colors['high'])
-    ax1.text(200,m3.Rt_base/5+0.05,'No restrictions', size=7, color=colors['line'])
+    ax1.text(0,1+0.05,'Scenario 3', size=7, color=colors['low'])
+    ax1.text(0,0.75+0.05,'Scenario 2', size=7, color=colors['mid'])
+    ax1.text(0,0.5+0.05,'Scenario 1', size=7, color=colors['high'])
+    ax1.text(200,0.5+0.05,'No restrictions', size=7, color=colors['line'])
     
     #Lifting of restrictions
     ax1.text(0.54,0.05,'Lifting of\nrestrictions', size=7, color=colors['line'], transform=ax1.transAxes)
