@@ -272,7 +272,8 @@ def sixpanels(models, path=None, silent=False, arial=False, ICUcap=None, full_wa
 #    ax1.plot(t[1800:], np.ones(1800), color=colors['free'])
     
     for i,m in enumerate([m1,m2,m3]):
-        ax1.plot(t, np.array(list(map(m.Rt, t)))/m.R0, color=main_colors[i])
+#        ax1.plot(t, np.array(list(map(m.Rt, t)))/m.R0, color=main_colors[i])
+        ax1.plot(t, np.array(list(map(m.Rt, t))), color=main_colors[i])
         ax2.plot(t, m.rho*(data[i][:,4]+data[i][:,5]+data[i][:,6]), color=main_colors[i])
         ax3.plot(t, data[i][:,10]+data[i][:,11], color=main_colors[i])
 
@@ -311,7 +312,7 @@ def sixpanels(models, path=None, silent=False, arial=False, ICUcap=None, full_wa
         ax.set_xlabel('2021            2022')
 
 
-    ax1.set_ylim(0,1.1)
+    ax1.set_ylim(0,None)
     ax2.set_ylim(0,None)
     ax3.set_ylim(0,None)
     ax4.set_ylim(0,None)

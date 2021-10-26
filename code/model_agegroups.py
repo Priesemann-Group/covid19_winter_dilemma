@@ -29,7 +29,9 @@ class Model:
         C_base, C_npi_base, C_npi_free, C_vol,
         w_ICU,
         plateaus, slopes,
-        feedback_off, mappingparam, fit_ICUcap, fit_epsilon
+        feedback_off, mappingparam, fit_epsilon,
+        fit_ICUcap, fit_HR_reduced, fit_LR_reduced, fit_HR_free, fit_LR_free,
+        Cs
     ):
         self.y0 = y0
         self.R0 = R0
@@ -79,8 +81,13 @@ class Model:
         self.slopes = slopes
         self.feedback_off = feedback_off
         self.mappingparam = mappingparam
-        self.fit_ICUcap = fit_ICUcap
         self.fit_epsilon = fit_epsilon
+        self.fit_ICUcap = fit_ICUcap
+        self.fit_HR_reduced = fit_HR_reduced
+        self.fit_LR_reduced = fit_LR_reduced
+        self.fit_HR_free = fit_HR_free
+        self.fit_LR_free = fit_LR_free
+        self.Cs = Cs
 
 
         self.eqs = 18           # number equations
@@ -122,13 +129,13 @@ class Model:
         return 1 + self.mu*np.cos(2*np.pi*(t+self.d_0-self.d_mu)/360.)
 
 
-    def C_npi(self, t):
-        if t<180-self.epsilon_free:
-            return self.C_npi_base
-        if t>180+self.epsilon_free:
-            return self.C_npi_free
-        else:
-            return self.C_npi_base + (self.C_npi_free-self.C_npi_base)*(t-180+self.epsilon_free)/2/self.epsilon_free
+    #def C_npi(self, t):
+    #    if t<180-self.epsilon_free:
+    #        return self.C_npi_base
+    #    if t>180+self.epsilon_free:
+    #        return self.C_npi_free
+    #    else:
+    #        return self.C_npi_base + (self.C_npi_free-self.C_npi_base)*(t-180+self.epsilon_free)/2/self.epsilon_free
 
     #Reproduction Number Old    
     #def Rt(self, t):
@@ -142,10 +149,36 @@ class Model:
 
     def alpha_vol(self,t):
         return (1-(self.selfregulation(t)-self.mappingparam)/(5-self.mappingparam))
-        
+
+    def fit_HR(self, t):
+        if t<180-self.epsilon_free:
+            return self.fit_HR_reduced
+        if t>180+self.epsilon_free:
+            return self.fit_HR_free
+        else:
+            return self.fit_HR_reduced + (self.fit_HR_free-self.fit_HR_reduced)*(t-180+self.epsilon_free)/2/self.epsilon_free
+    def fit_LR(self, t):
+        if t<180-self.epsilon_free:
+            return self.fit_LR_reduced
+        if t>180+self.epsilon_free:
+            return self.fit_LR_free
+        else:
+            return self.fit_LR_reduced + (self.fit_LR_free-self.fit_LR_reduced)*(t-180+self.epsilon_free)/2/self.epsilon_free
+
+    def new_sr(self,t):
+        a = -(self.fit_LR(t)-self.fit_HR(t))/self.fit_ICUcap
+        b = self.fit_LR(t)-self.fit_HR(t)
+        # ugly hack: just choose the first entry of H_Rt, FIX IT LATER!
+        res =  (self.H_Rt(t)[0]<self.fit_ICUcap) * (a*self.H_Rt(t)[0]+b) + self.fit_HR(t)
+        # scale down households
+        res[0] *= res[1:].sum()/3.
+        return res
 
     def Rt(self, t): # not directly used in the code, for plotting only
-        return self.R0 * max(np.linalg.eigvals(self.C_base + self.C_npi(t) + self.C_vol))
+        CM = np.zeros([6,6])
+        for i in range(4):
+            CM += self.Cs[i,:,:] * self.new_sr(t)[i]
+        return self.R0 * self.Gamma(t) * max(np.linalg.eigvals(CM))
             
     def u_w(self, t):
         return self.u_base + (self.u_max-self.u_base)*(1-np.exp(-self.alpha_u*self.H_vac1(t)-self.e_u))
@@ -201,9 +234,13 @@ class Model:
         
         
         #Effective time dependent contact matrix
-        CM = self.C_base + self.C_npi(t) + np.maximum(self.alpha_vol(t),self.feedback_off)*self.C_vol
-        
-        #transposed the thing because its symmetric anyways atm and before that we tranposed it. Have to check it again
+        #CM = self.C_base + self.C_npi(t) + np.maximum(self.alpha_vol(t),self.feedback_off)*self.C_vol
+        CM = np.zeros([6,6])
+        for i in range(4):
+            CM += self.Cs[i,:,:] * self.new_sr(t)[i]
+        #CM = self.new_sr(t) * self.Cs
+
+        # PD: CM is no longer symmetric, transposed should be right
         infect = gamma*self.R0*self.Gamma(t) * np.matmul(CM.transpose(), I_eff/M)
 
 
