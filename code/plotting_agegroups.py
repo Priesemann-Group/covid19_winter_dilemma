@@ -1,6 +1,7 @@
 import numpy as np
 from matplotlib import pyplot as plt
 import matplotlib as mpl
+import cosmodata 
 
 
 def set_rcParams(arial=False):
@@ -172,6 +173,7 @@ def overview_agegroups(model, path=None, silent=False, arial=False):
     d2 = np.roll(phis[:,1,:], -shift, axis=0)
     d2[-shift:,:] = 0
     def Rt(t):
+        #Stapel aus 6x6 Matrizen, 4 lang. Elementweise gewichtete Addition und anschließende Summation über Zeilen
         return np.matmul( (np.moveaxis(model.Cs,0,2) * model.new_sr(t)).sum(axis=2), np.ones(6) )
 
 
@@ -390,6 +392,206 @@ def sixpanels(models, path=None, silent=False, arial=False, ICUcap=None, full_wa
     handles = [mpl.patches.Patch(facecolor=colors['highL'], edgecolor='black', label='By infection'),
                mpl.patches.Patch(facecolor=colors['high'], edgecolor='black', label='By vaccination')]
     ax5.legend(handles=handles, bbox_to_anchor=(0.1,0.9), ncol=1, frameon=False)
+
+    fig.align_ylabels()
+
+    if not silent: plt.show()
+    if path!=None: fig.savefig(path)
+        
+        
+        
+        
+#-------------------------------------------------------------------------------------------------------------------        
+        
+        
+        
+def sixpanels_flexible(models, path=None, silent=False, arial=False, ICUcap=None, full_wave=None):
+    set_rcParams(arial=arial)
+    mpl.rcParams["legend.fontsize"] = 7
+
+    m1, m2, m3 = models
+    t = m1.times
+    data = [m1.chopped_data().sum(axis=2), m2.chopped_data().sum(axis=2), m3.chopped_data().sum(axis=2)]
+    AGdata = [m1.chopped_data(), m2.chopped_data(), m3.chopped_data()]
+    
+    ags = AGdata[0].shape[2]
+    colors = mpl.cm.viridis_r(np.linspace(0.,1.,ags))
+
+    fig = plt.figure(figsize=(6., 3.5), constrained_layout=True)
+    grid = fig.add_gridspec(ncols=3, nrows=2, wspace=0.1)
+
+    ax1 = fig.add_subplot(grid[0])
+    ax2 = fig.add_subplot(grid[1])
+    ax3 = fig.add_subplot(grid[2])
+    ax4 = fig.add_subplot(grid[3])
+    ax5 = fig.add_subplot(grid[4])
+    ax6 = fig.add_subplot(grid[5])
+
+    colors = {
+        'low':'#0099B4FF', 'mid':'#00468BFF', 'high':'#1B1919FF', 'free':'#1B1919FF',
+        'lowL':'#FFFFFFFF', 'midL':'#FFFFFFFF', 'highL':'#FFFFFFFF',
+#        'lowL':'#0099B499', 'midL':'#00468B99', 'highL':'#1B191999',
+        'line':'#ADB6B6FF', 'ICUcap':'#FFAAAA',
+        'now':'#ADB6B6FF', 'nowL':'#FFFFFFFF',
+#        'now':'#93dfedFF', 'nowL':'#93dfed99',
+        'FW':'#ED0000FF',
+    }
+    main_colors = [colors['high'],colors['mid'],colors['low']]
+    main_colors_L = [colors['highL'],colors['midL'],colors['lowL']]
+
+
+    def Rt(m,t):
+        return max(np.linalg.eigvals((np.moveaxis(m.Cs,0,2) * m.fit_LR(t)).sum(axis=2)))
+    
+    def plot_axes_winter(ax):
+        ax.axvline(180, ls=':', color=colors['line'], zorder=-4)
+        ax.set_xlabel('2021           2022')
+        ax.set_ylim(0,None)
+        ax.set_xticks([45, 135, 45+2*90, 45+3*90])
+        ax.set_xticklabels(['Oct.','Jan.','Apr.','July'])
+        return None
+    
+    def plot_cosmo(ax):
+        ax.scatter(cosmodata.cosmotimeline,cosmodata.avggroup, color='red', alpha=0.5, s=8)
+        ax.plot(cosmodata.t,cosmodata.NPItime, label='Stringency', color='green', zorder=5)
+        ax.set_ylabel("Stringency and\ncompliance")
+        ax.set_xlabel('2020            2021')
+        ax.set_xticks([cosmodata.datesdict['2020-04-15'], cosmodata.datesdict['2020-10-15'], 
+                       cosmodata.datesdict['2021-04-15'], cosmodata.datesdict['2021-10-15']])
+        ax.set_xticklabels(['Apr.', 'Oct.', 'Apr.', 'Oct.'])
+        ax.axvspan(cosmodata.datesdict['2020-10-15'], cosmodata.datesdict['2020-12-15'], ymin=0, ymax=1, color='gray', alpha=0.2) 
+        return None 
+    
+    def plot_romania(ax):
+        startdate='2021-03-15'
+        startpoint = cosmodata.datesdict[startdate]
+        ax.plot(cosmodata.ROU_t[startpoint:], cosmodata.ROU_ICUtime[startpoint:])
+        ax.plot(cosmodata.ROU_t[startpoint:], np.array(cosmodata.ROU_vaccinetime)[startpoint:]/100000*80)
+        ax.set_ylabel("ICU occupancy and\ndaily vaccinations")
+        ax.set_xlabel('2021')
+        ax.set_xticks([cosmodata.ROU_datesdict['2021-04-15'], cosmodata.ROU_datesdict['2021-07-15'], 
+                       cosmodata.ROU_datesdict['2021-10-15']])
+        ax.set_xticklabels(['Apr.', 'July', 'Oct.'])
+        ax.set_yticks([])
+        return None 
+    
+    def plot_NPI(ax):
+        for i, m in enumerate([m1,m2,m3]):
+            ax.plot(t, list(map(Rt, [m]*len(t), t)), color=main_colors[i], zorder=-i)
+        plot_axes_winter(ax)
+        ax.set_ylabel("Contact levels\ninfluenced by NPIs")
+        ax.text(0.54,0.15,'Lifting of\nrestrictions', size=7, color=colors['line'], transform=ax.transAxes)
+        return None
+    
+    def plot_incidence(ax):
+        for i, m in enumerate([m1,m2,m3]):
+            ax.plot(t, m.rho*(data[i][:,4]+data[i][:,5]+data[i][:,6]), color=main_colors[i])
+        ax.set_ylabel("Daily new cases\nper million")
+        plot_axes_winter(ax)
+        return None
+    
+    def plot_ICU(ax):
+        for i, m in enumerate([m1,m2,m3]):
+            ax.plot(t, data[i][:,10]+data[i][:,11], color=main_colors[i])
+        ax.set_ylabel("ICU occupancy\nper million")
+        plot_axes_winter(ax)
+        return None
+    
+    def plot_vaccinations(ax):
+        for i,m in enumerate([m1,m2,m3]):
+            phis = np.array(list(map(m.get_phis, t, AGdata[i]))).sum(axis=(2,3))
+            shift = round(m.tau_vac1/m.step_size)
+            d1a = np.roll(phis[:,0], -shift)
+            d1a[-shift:] = 0
+            shift = round(m.tau_vac1/2./m.step_size)
+            d1b = np.roll(phis[:,0], -shift)
+            d1b[-shift:] = 0
+            shift = round(m.tau_vac2/m.step_size)
+            d2 = np.roll(phis[:,1], -shift)
+            d2[-shift:] = 0
+            ax.plot(t, d1a+d1b+d2, color=main_colors[i])
+        ax.set_ylabel("Daily vaccinations\nper million")
+        plot_axes_winter(ax)
+        return None 
+    
+    def plot_bar_immunity(ax):
+        ax.bar(1, data[0][0,1]/1e6, 0.5, align='center', color=colors['now'], edgecolor='black', zorder=-1)
+        ax.bar(1, (data[0][0,12]+data[0][0,13])/1e6, 0.5, align='center', 
+               color=colors['nowL'], edgecolor='black', zorder=-1, bottom=data[0][0,1]/1e6)
+        offset = 0.5
+        for i in [2,4]:
+            for ab,m,j in zip([-0.5,0,0.5],[m1,m2,m3],[0,1,2]):
+                ax.bar(offset+i+ab, data[j][900*i-1,1]/1e6, 0.5,  
+                    align='center', color=main_colors[j], edgecolor='black', zorder=-1)
+                ax.bar(offset+i+ab, (data[j][900*i-1,12]+data[j][900*i-1,13])/1e6, 0.5,
+                    align='center', color=main_colors_L[j], edgecolor='black', zorder=-1,
+                        bottom=data[j][900*i-1,1]/1e6)
+        ax.set_ylim(0,1)
+        ax.set_ylabel("Immune fraction\nof the population")
+        ax_x = [1,offset+2,offset+4]
+        axlabels=['Initial','After\nwinter', 'After\none year']
+        ax.set_xticks(ax_x)
+        ax.set_xticklabels(axlabels)
+        handles = [mpl.patches.Patch(facecolor=colors['highL'], edgecolor='black', label='By infection'),
+               mpl.patches.Patch(facecolor=colors['high'], edgecolor='black', label='By vaccination')]
+        
+        #ax.legend(handles=handles, loc='upper right', ncol=1, frameon=False)
+        return None 
+    
+    def plot_bar_deaths(ax):
+        offset = 0.5
+        for i in [2,4]:
+            for ab,m,j in zip([-0.5,0,0.5],[m1,m2,m3],[0,1,2]):
+                ax.bar(offset+i+ab, data[j][900*i-1,16], 0.5, 
+                    align='center', color=main_colors[j], edgecolor='black', zorder=-3)    
+        ax.set_ylim(0,None)
+        ax.set_ylabel("Total deaths\nper million")
+        ax_x = [offset+2,offset+4]
+        axlabels=['After\nwinter', 'After\none year']
+        ax.set_xticks(ax_x)
+        ax.set_xticklabels(axlabels)
+        return None
+    
+        
+    
+    
+    # -----------------------------------------Plotting ----------------------------------------------
+    
+    plotting_dict={
+    ax1: plot_cosmo,
+    ax2: plot_NPI,
+    ax3: plot_NPI,
+    ax4: plot_romania,
+    ax5: plot_incidence,
+    ax6: plot_bar_immunity
+    }
+    
+    for ax in [ax1,ax2,ax3,ax4,ax5,ax6]:   
+        plotting_dict[ax](ax)
+
+
+    
+    # --------------------------------------- General Axis Things -----------------------------------
+    
+
+    for ax, label in zip([ax1,ax2,ax3,ax4,ax5,ax6], ['A','B','C','D','E','F']):
+        ax.text(-.12,1.1,label, size=12, weight='bold', color='black', transform=ax.transAxes)
+        
+    # Not touched yet:
+
+    if ICUcap != None:
+        ax3.axhspan(ICUcap-2,ICUcap+2, xmax=0.92, facecolor=colors['ICUcap'], edgecolor=None, zorder=-1)
+        ax3.text(1.0,0.3,'ICU capacity', size=7, color='red', rotation=-90, transform=ax3.transAxes)
+        ax3.scatter(380,ICUcap, marker="<", color='grey')
+
+    if full_wave != None:
+        m = full_wave
+        d = m.chopped_data().sum(axis=2)
+        ax2.plot(t, m.rho*(d[:,4]+d[:,5]+d[:,6]), color=colors['FW'], ls=':')
+        ax3.plot(t, d[:,10]+d[:,11], color=colors['FW'], ls=':')
+        ax2.text(0.58,0.72,'Full wave', size=7, color=colors['FW'], transform=ax2.transAxes)
+        ax3.text(0.58,0.72,'Full wave', size=7, color=colors['FW'], transform=ax3.transAxes)
+
 
     fig.align_ylabels()
 
