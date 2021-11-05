@@ -128,8 +128,8 @@ def overview_agegroups(model, path=None, silent=False, arial=False):
     colors = mpl.cm.viridis_r(np.linspace(0.,1.,ags))
 
 
-    fig = plt.figure(figsize=(8, 7), constrained_layout=True)
-    grid = fig.add_gridspec(ncols=3, nrows=4, hspace=0.1, wspace=0.1)
+    fig = plt.figure(figsize=(8, 9), constrained_layout=True)
+    grid = fig.add_gridspec(ncols=3, nrows=5, hspace=0.1, wspace=0.1)
     
 
     ax1 = fig.add_subplot(grid[0])
@@ -144,8 +144,11 @@ def overview_agegroups(model, path=None, silent=False, arial=False):
     ax10 = fig.add_subplot(grid[9],sharex=ax1)
     ax11 = fig.add_subplot(grid[10],sharex=ax1)
     ax12 = fig.add_subplot(grid[11],sharex=ax1)
+    ax13 = fig.add_subplot(grid[12],sharex=ax1)
+    ax14 = fig.add_subplot(grid[13],sharex=ax1)
+    ax15 = fig.add_subplot(grid[14],sharex=ax1)
 
-    axs = [ax1,ax2,ax4,ax5,ax6,ax7,ax8,ax9,ax10,ax11,ax12]
+    axs = [ax1,ax2,ax4,ax5,ax6,ax7,ax8,ax9,ax10,ax11,ax12,ax13,ax14,ax15]
 #    titles = ['Incidence','Breakthrough share\nof incidence','',
 #              'ICU occupancy','Breakthrough share\nnof ICU occupancy','Daily new deaths',
 #              'Susceptible','Immune (vac.+natural)','Waned immunity',
@@ -168,6 +171,8 @@ def overview_agegroups(model, path=None, silent=False, arial=False):
     shift = round(model.tau_vac2/model.step_size)
     d2 = np.roll(phis[:,1,:], -shift, axis=0)
     d2[-shift:,:] = 0
+    def Rt(t):
+        return np.matmul( (np.moveaxis(model.Cs,0,2) * model.new_sr(t)).sum(axis=2), np.ones(6) )
 
 
     for ag in range(ags):
@@ -176,13 +181,17 @@ def overview_agegroups(model, path=None, silent=False, arial=False):
         # ax3 legend
         ax4.plot(t,(AGdata[:,10,ag]+AGdata[:,11,ag])/(M[ag]/1e6), color=colors[ag])
         ax5.plot(t,AGdata[:,11,ag]/(AGdata[:,10,ag]+AGdata[:,11,ag]), color=colors[ag])
-        ax6.plot(t,dD[:,ag]/(M[ag]/1e6), color=colors[ag])
+#        ax6.plot(t,dD[:,ag]/(M[ag]/1e6), color=colors[ag])
+        ax6.plot(t,AGdata[:,16,ag], color=colors[ag])
         ax7.plot(t,AGdata[:,0,ag]/M[ag], color=colors[ag])
         ax8.plot(t,(AGdata[:,1,ag]+AGdata[:,12,ag]+AGdata[:,13,ag])/M[ag], color=colors[ag])
         ax9.plot(t,(AGdata[:,2,ag]+AGdata[:,3,ag])/M[ag], color=colors[ag])
         ax10.plot(t,d1a[:,ag]/(M[ag]/1e6), color=colors[ag])
         ax11.plot(t,d2[:,ag]/(M[ag]/1e6), color=colors[ag])
         ax12.plot(t,(d1a[:,ag]+d1b[:,ag]+d2[:,ag]), color=colors[ag])
+        ax13.plot(t,np.array(list(map(Rt,t)))[:,ag], color=colors[ag])
+        ax14.plot(t,model.Gamma(t), color='black')
+        ax15.plot(t,model.R0 * model.Gamma(t) * np.array(list(map(Rt,t)))[:,ag], color=colors[ag])
 
     for i,ax in enumerate(axs):
 #        ax.set_title(titles[i])
@@ -193,13 +202,16 @@ def overview_agegroups(model, path=None, silent=False, arial=False):
     #ax3 legend
     ax4.set_ylabel("ICU occupancy\nper million in age group")
     ax5.set_ylabel("Breakthrough share\nof ICU occupancy")
-    ax6.set_ylabel("Daily new deaths\nper million in age group")
+    ax6.set_ylabel("Cumulative deaths\nper million of population")
     ax7.set_ylabel("Susceptible fraction\nof the population")
     ax8.set_ylabel("Immune fraction\nof the population")
     ax9.set_ylabel("Waned immune fraction\nof the population")
     ax10.set_ylabel("Daily first-time vac.\nper million in age group")
     ax11.set_ylabel("Daily booster vac.\nper million in age group")
     ax12.set_ylabel("Daily total vac.\nper million of population")
+    ax13.set_ylabel("Contacts")
+    ax14.set_ylabel("Seasonality")
+    ax15.set_ylabel("Total gross Rt")
 
     ax1.set_xticks([45, 135, 45+2*90, 45+3*90])
     ax1.set_xticklabels(['Oct.','Jan.','Apr.','July'])
@@ -270,10 +282,13 @@ def sixpanels(models, path=None, silent=False, arial=False, ICUcap=None, full_wa
 
 
 #    ax1.plot(t[1800:], np.ones(1800), color=colors['free'])
+    def Rt(m,t):
+        return max(np.linalg.eigvals((np.moveaxis(m.Cs,0,2) * m.fit_LR(t)).sum(axis=2)))
     
     for i,m in enumerate([m1,m2,m3]):
 #        ax1.plot(t, np.array(list(map(m.Rt, t)))/m.R0, color=main_colors[i])
-        ax1.plot(t, np.array(list(map(m.Rt, t))), color=main_colors[i])
+#        ax1.plot(t, np.array(list(map(m.Rt, t))), color=main_colors[i])
+        ax1.plot(t, list(map(Rt, [m]*len(t), t)), color=main_colors[i])
         ax2.plot(t, m.rho*(data[i][:,4]+data[i][:,5]+data[i][:,6]), color=main_colors[i])
         ax3.plot(t, data[i][:,10]+data[i][:,11], color=main_colors[i])
 
@@ -330,9 +345,9 @@ def sixpanels(models, path=None, silent=False, arial=False, ICUcap=None, full_wa
     ax6.set_ylabel("Total deaths\nper million")
 
     #Panel 1
-    ax1.text(0,1+0.05,'Scenario 3', size=7, color=colors['low'])
+    ax1.text(0,1+0.05,'Scenario 1', size=7, color=colors['high'])
     ax1.text(0,0.75+0.05,'Scenario 2', size=7, color=colors['mid'])
-    ax1.text(0,0.5+0.05,'Scenario 1', size=7, color=colors['high'])
+    ax1.text(0,0.5+0.05,'Scenario 3', size=7, color=colors['low'])
     ax1.text(200,0.5+0.05,'No restrictions', size=7, color=colors['line'])
     
     #Lifting of restrictions
