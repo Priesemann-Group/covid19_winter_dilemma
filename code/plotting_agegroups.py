@@ -174,7 +174,7 @@ def overview_agegroups(model, path=None, silent=False, arial=False):
     d2[-shift:,:] = 0
     def Rt(t):
         #Stapel aus 6x6 Matrizen, 4 lang. Elementweise gewichtete Addition und anschließende Summation über Zeilen
-        return np.matmul( (np.moveaxis(model.Cs,0,2) * model.new_sr(t)).sum(axis=2), np.ones(6) )
+        return np.matmul( (np.moveaxis(model.Cs,0,2) * model.k_selfregulation(t)).sum(axis=2), np.ones(6) )
 
 
     for ag in range(ags):
@@ -193,7 +193,7 @@ def overview_agegroups(model, path=None, silent=False, arial=False):
         ax12.plot(t,(d1a[:,ag]+d1b[:,ag]+d2[:,ag]), color=colors[ag])
         ax13.plot(t,np.array(list(map(Rt,t)))[:,ag], color=colors[ag])
         ax14.plot(t,model.Gamma(t), color='black')
-        ax15.plot(t,model.R0 * model.Gamma(t) * np.array(list(map(Rt,t)))[:,ag], color=colors[ag])
+        ax15.plot(t,model.beta/model.gamma[ag] * model.Gamma(t) * np.array(list(map(Rt,t)))[:,ag], color=colors[ag])
 
     for i,ax in enumerate(axs):
 #        ax.set_title(titles[i])
@@ -285,7 +285,7 @@ def sixpanels(models, path=None, silent=False, arial=False, ICUcap=None, full_wa
 
 #    ax1.plot(t[1800:], np.ones(1800), color=colors['free'])
     def Rt(m,t):
-        return max(np.linalg.eigvals((np.moveaxis(m.Cs,0,2) * m.fit_LR(t)).sum(axis=2)))
+        return max(np.linalg.eigvals((np.moveaxis(m.Cs,0,2) * m.k_lowH(t)).sum(axis=2)))
     
     for i,m in enumerate([m1,m2,m3]):
 #        ax1.plot(t, np.array(list(map(m.Rt, t)))/m.R0, color=main_colors[i])
@@ -405,7 +405,7 @@ def sixpanels(models, path=None, silent=False, arial=False, ICUcap=None, full_wa
         
         
         
-def sixpanels_flexible(models, path=None, silent=False, arial=False, ICUcap=None, full_wave=None):
+def sixpanels_flexible(models, figure, path=None, silent=False, arial=False, ICUcap=None, full_wave=None):
     set_rcParams(arial=arial)
     mpl.rcParams["legend.fontsize"] = 7
 
@@ -441,7 +441,7 @@ def sixpanels_flexible(models, path=None, silent=False, arial=False, ICUcap=None
 
 
     def Rt(m,t):
-        return max(np.linalg.eigvals((np.moveaxis(m.Cs,0,2) * m.fit_LR(t)).sum(axis=2)))
+        return max(np.linalg.eigvals((np.moveaxis(m.Cs,0,2) * m.k_lowH(t)).sum(axis=2)))
     
     def plot_axes_winter(ax):
         ax.axvline(180, ls=':', color=colors['line'], zorder=-4)
@@ -467,7 +467,7 @@ def sixpanels_flexible(models, path=None, silent=False, arial=False, ICUcap=None
         startpoint = cosmodata.datesdict[startdate]
         ax.plot(cosmodata.ROU_t[startpoint:], cosmodata.ROU_ICUtime[startpoint:])
         ax.plot(cosmodata.ROU_t[startpoint:], np.array(cosmodata.ROU_vaccinetime)[startpoint:]/100000*80)
-        ax.set_ylabel("ICU occupancy and\ndaily vaccinations")
+        ax.set_ylabel("ICU occupancy and\ndaily vaccinations\nin Romania")
         ax.set_xlabel('2021')
         ax.set_xticks([cosmodata.ROU_datesdict['2021-04-15'], cosmodata.ROU_datesdict['2021-07-15'], 
                        cosmodata.ROU_datesdict['2021-10-15']])
@@ -488,6 +488,10 @@ def sixpanels_flexible(models, path=None, silent=False, arial=False, ICUcap=None
             ax.plot(t, m.rho*(data[i][:,4]+data[i][:,5]+data[i][:,6]), color=main_colors[i])
         ax.set_ylabel("Daily new cases\nper million")
         plot_axes_winter(ax)
+        if full_wave != None:
+            mfull = full_wave
+            d = mfull.chopped_data().sum(axis=2)
+            ax.plot(t, mfull.rho*(d[:,4]+d[:,5]+d[:,6]), color=colors['FW'], ls=':')
         return None
     
     def plot_ICU(ax):
@@ -495,6 +499,10 @@ def sixpanels_flexible(models, path=None, silent=False, arial=False, ICUcap=None
             ax.plot(t, data[i][:,10]+data[i][:,11], color=main_colors[i])
         ax.set_ylabel("ICU occupancy\nper million")
         plot_axes_winter(ax)
+        if full_wave != None:
+            mfull = full_wave
+            d = mfull.chopped_data().sum(axis=2)
+            ax.plot(t, d[:,10]+d[:,11], color=colors['FW'], ls=':')
         return None
     
     def plot_vaccinations(ax):
@@ -552,18 +560,81 @@ def sixpanels_flexible(models, path=None, silent=False, arial=False, ICUcap=None
         ax.set_xticklabels(axlabels)
         return None
     
+    def plot_Rt_eigenvalue(ax):
+        for i, m in enumerate([m1,m2,m3]):
+            #list(map(Rt, [m]*len(t), t))
+            ax.plot(t, list(map(m.Rt,t)), color=main_colors[i], zorder=-i)
+        plot_axes_winter(ax)
+        ax.set_ylabel("Driving force\nof infections")
+        return None 
+    
+    def plot_Rt_observed2(ax):
+        delay = round(4/m1.step_size)
+        offset = round(5/m1.step_size)
+        for i, m in enumerate([m1,m2,m3]):
+            ax.plot(t[offset+delay:], (data[i][offset+delay:,4]+data[i][offset+delay:,5]+data[i][offset+delay:,6])/(data[i][offset:-delay,4]+data[i][offset:-delay,5]+data[i][offset:-delay,6]), color=main_colors[i])
+        ax.axvline(180, ls=':', color=colors['line'], zorder=-4)
+        ax.set_xlabel('2021           2022')
+        ax.set_xticks([45, 135, 45+2*90, 45+3*90])
+        ax.set_xticklabels(['Oct.','Jan.','Apr.','July'])
+        ax.set_ylabel("Observed\nreproduction number")
+        return None 
+    
+    def plot_Rt_observed(ax):
+        delay = round(4/m1.step_size)
+        offset = round(5/m1.step_size)
+        for i, m in enumerate([m1,m2,m3]):
+            cases = (data[i][:,4]+data[i][:,5]+data[i][:,6])
+            Robs = (cases / np.roll(cases, delay))[delay:]
+            ax.plot(t[delay:],Robs, color=main_colors[i])
+        ax.axvline(180, ls=':', color=colors['line'], zorder=-4)
+        ax.set_xlabel('2021           2022')
+        ax.set_xticks([45, 135, 45+2*90, 45+3*90])
+        ax.set_xticklabels(['Oct.','Jan.','Apr.','July'])
+        ax.set_ylabel("Observed\nreproduction number")
+    
+    def plot_bar_patients(ax):
+        offset = 0.5
+        for i in [2,4]:
+            for ab,m,j in zip([-0.5,0,0.5],[m1,m2,m3],[0,1,2]):
+                ax.bar(offset+i+ab, data[j][:900*i-1,10].sum()+data[j][:900*i-1,11].sum(), 0.5, 
+                    align='center', color=main_colors[j], edgecolor='black', zorder=-3)    
+        ax.set_ylim(0,None)
+        ax.set_ylabel("Total ICU patients\nper million")
+        ax_x = [offset+2,offset+4]
+        axlabels=['After\nwinter', 'After\none year']
+        ax.set_xticks(ax_x)
+        ax.set_xticklabels(axlabels)
+        return None
+        
         
     
     
     # -----------------------------------------Plotting ----------------------------------------------
     
-    plotting_dict={
-    ax1: plot_cosmo,
-    ax2: plot_NPI,
-    ax3: plot_NPI,
-    ax4: plot_romania,
-    ax5: plot_incidence,
-    ax6: plot_bar_immunity
+    translation = {
+        'NPI': plot_NPI,
+        'ICU': plot_ICU,
+        'Incidence': plot_incidence,
+        'Vaccines': plot_vaccinations,
+        'Immunity': plot_bar_immunity,
+        'Deaths': plot_bar_deaths,
+        'Rt_EV': plot_Rt_eigenvalue,
+        'Rt_OBS': plot_Rt_observed,
+        'Rt_OBS2': plot_Rt_observed2,
+        'Cosmo': plot_cosmo,
+        'Romania': plot_romania,
+        'Patients': plot_bar_patients
+    }
+    
+    
+    plotting_dict ={
+    ax1: translation[figure['ax1']],
+    ax2: translation[figure['ax2']],
+    ax3: translation[figure['ax3']],
+    ax4: translation[figure['ax4']],
+    ax5: translation[figure['ax5']],
+    ax6: translation[figure['ax6']]
     }
     
     for ax in [ax1,ax2,ax3,ax4,ax5,ax6]:   
@@ -577,13 +648,14 @@ def sixpanels_flexible(models, path=None, silent=False, arial=False, ICUcap=None
     for ax, label in zip([ax1,ax2,ax3,ax4,ax5,ax6], ['A','B','C','D','E','F']):
         ax.text(-.12,1.1,label, size=12, weight='bold', color='black', transform=ax.transAxes)
         
+        
     # Not touched yet:
 
     if ICUcap != None:
         ax3.axhspan(ICUcap-2,ICUcap+2, xmax=0.92, facecolor=colors['ICUcap'], edgecolor=None, zorder=-1)
         ax3.text(1.0,0.3,'ICU capacity', size=7, color='red', rotation=-90, transform=ax3.transAxes)
         ax3.scatter(380,ICUcap, marker="<", color='grey')
-
+    '''
     if full_wave != None:
         m = full_wave
         d = m.chopped_data().sum(axis=2)
@@ -591,7 +663,7 @@ def sixpanels_flexible(models, path=None, silent=False, arial=False, ICUcap=None
         ax3.plot(t, d[:,10]+d[:,11], color=colors['FW'], ls=':')
         ax2.text(0.58,0.72,'Full wave', size=7, color=colors['FW'], transform=ax2.transAxes)
         ax3.text(0.58,0.72,'Full wave', size=7, color=colors['FW'], transform=ax3.transAxes)
-
+    '''
 
     fig.align_ylabels()
 
