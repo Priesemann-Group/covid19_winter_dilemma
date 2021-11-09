@@ -1,4 +1,4 @@
-#Agegroup;Anteil;delta;Theta;Theta_ICU;gamma;gamma_ICU;alpha_R;alpha_u;alpha_w;chi_0;chi_1;u_base;w_base;V_raw;R_raw;cases;ICU;W_V;W_R;Serop;Darkfigure;Percentage Waned from V;Percentage Waned from R
+#Agegroup;Anteil;delta;Theta;Theta_ICU;gamma;gamma_ICU;alpha_R;alpha_u;alpha_w;chi_u;chi_w;u_base;w_base;V_raw;R_raw;cases;ICU;W_V;W_R;Serop;Darkfigure;Percentage Waned from V;Percentage Waned from R
 #0,19;0.18;0.000014;0.000002;0.00556;0.09998;0.19444;0.01;0.02;0.03;0.6;0.65;0.2;0;30960;10044;18.18648;0.1346;309.6;4017.6;0.02370384;2.36;0.01;0.4
 #20,39;0.25;0.000204;0.000014;0.00778;0.09978;0.19222;0.01;0.02;0.03;0.05;0.1;0.5;0;157500;15742;15.2975;1.23832;3150;6296.8;0.03715112;2.36;0.02;0.4
 #40,59;0.28;0.001217;0.000111;0.006164;0.09867;0.084745;0.01;0.02;0.03;0.04;0.08;0.55;0;215600;15440;13.7228;4.89944;6468;6176;0.0364384;2.36;0.03;0.4
