@@ -399,7 +399,70 @@ def sixpanels(models, path=None, silent=False, arial=False, ICUcap=None, full_wa
     if path!=None: fig.savefig(path)
         
         
+
         
+def motivation(figure, shape= 'Vertical', path=None, silent=False, arial=False):
+    set_rcParams(arial=arial)
+    
+    if shape == 'Vertical':
+        fig = plt.figure(figsize=(2.5, 4), constrained_layout=True)
+        grid = fig.add_gridspec(ncols=1, nrows=2, wspace=0.1)
+    else:
+        fig = plt.figure(figsize=(4., 2), constrained_layout=True)
+        grid = fig.add_gridspec(ncols=2, nrows=1, wspace=0.1)
+
+    ax1 = fig.add_subplot(grid[0])
+    ax2 = fig.add_subplot(grid[1])
+    
+    
+    def plot_cosmo(ax):
+        ax.scatter(cosmodata.cosmotimeline,cosmodata.avggroup, color='red', label='Compliance', alpha=0.5, s=8)
+        #NPItime_aligned 
+        ax.plot(cosmodata.t,cosmodata.NPItime, label='Stringency', color='green', zorder=5)
+        ax.set_ylabel("Stringency and\ncompliance")
+        ax.set_xlabel('2020            2021')
+        ax.set_xticks([cosmodata.datesdict['2020-04-15'], cosmodata.datesdict['2020-10-15'], 
+                       cosmodata.datesdict['2021-04-15'], cosmodata.datesdict['2021-10-15']])
+        ax.set_xticklabels(['Apr.', 'Oct.', 'Apr.', 'Oct.'])
+        ax.axvspan(cosmodata.datesdict['2020-10-15'], cosmodata.datesdict['2020-12-15'], ymin=0, ymax=1, color='gray', alpha=0.2) 
+        ax.legend(loc='lower right')
+        return None 
+    
+    def plot_romania(ax):
+        startdate='2021-03-15'
+        startpoint = cosmodata.datesdict[startdate]
+        ax.plot(cosmodata.ROU_t[startpoint:], cosmodata.ROU_ICUtime[startpoint:], label='ICU')
+        ax.plot(cosmodata.ROU_t[startpoint:], np.array(cosmodata.ROU_vaccinetime)[startpoint:]/100000*80, label='Vaccines')
+        ax.set_ylabel("ICU occupancy and\ndaily vaccinations\nin Romania")
+        ax.set_xlabel('2021')
+        ax.set_xticks([cosmodata.ROU_datesdict['2021-04-15'], cosmodata.ROU_datesdict['2021-07-15'], 
+                       cosmodata.ROU_datesdict['2021-10-15']])
+        ax.set_xticklabels(['Apr.', 'July', 'Oct.'])
+        ax.set_yticks([])
+        ax.legend(loc='best')
+        return None 
+    
+    #----------------------------------------- Plotting ------------------------------------------------
+    
+    translation = {
+        'Cosmo': plot_cosmo,
+        'Romania': plot_romania,
+    }
+    
+    
+    plotting_dict ={
+    ax1: translation[figure['ax1']],
+    ax2: translation[figure['ax2']]
+    }
+    
+    for ax in [ax1,ax2]:   
+        plotting_dict[ax](ax)
+
+    fig.align_ylabels()
+
+    if not silent: plt.show()
+    if path!=None: fig.savefig(path)
+    
         
 #-------------------------------------------------------------------------------------------------------------------        
         

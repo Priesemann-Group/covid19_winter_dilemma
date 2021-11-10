@@ -7,6 +7,8 @@ params_base = {
     #y0
     #Cs
 
+    #Auskommentiert sind die altersabhängigen Parameter
+    
     'beta':0.5,
     'kappa': 0.8,
     'sigma': 0.5,
@@ -16,8 +18,8 @@ params_base = {
     #'gamma_ICU': 0.13,
     #'Theta': 0.0005366,
     #'Theta_ICU': 0.09755,
-    'omega_v': 1./(4*30),
-    'omega_n': 1./(4*30),
+    'omega_v': 1./(8*30),
+    'omega_n': 1./(8*30),
 
     'mu': 0.267,
     'd_0': 8*30.,
@@ -151,24 +153,38 @@ def calc_Cs():
     C_workplace = np.loadtxt('../parameters/Germany_country_level_F_work_setting_85.csv', delimiter=',')
     C_community = np.loadtxt('../parameters/Germany_country_level_F_community_setting_85.csv', delimiter=',')
     
+    germany = np.loadtxt('../parameters/germany.csv', delimiter=',')
+    germany[84,1]= germany[84:,1].sum()
+    germany = germany[:85,1]
+    
     w_h = 4.1100
     w_s = 11.4100
     w_w = 8.0700
     w_c = 2.7900
     
-    ind = [0, 19, 39, 59, 69, 79, -1];
+    ind = [0, 20, 40, 60, 70, 80, -1];
+
+    for i in range(85):
+        for j in range(85):
+            C_household[i,j] *= germany[i]*germany[j]
+            C_school[i,j] *= germany[i]*germany[j]
+            C_workplace[i,j] *= germany[i]*germany[j]
+            C_community[i,j] *= germany[i]*germany[j]
     
     C_H = np.zeros([6,6])
     C_S = np.zeros([6,6])
     C_W = np.zeros([6,6])
     C_C = np.zeros([6,6])
     
+    def M(i):
+        return germany[ind[i]:ind[i+1]].sum()
+
     for i in range(6):
         for j in range(6):
-            C_H[i,j] = C_household[ind[i]:ind[i+1],ind[j]:ind[j+1]].sum()
-            C_S[i,j] = C_school[ind[i]:ind[i+1],ind[j]:ind[j+1]].sum()
-            C_W[i,j] = C_workplace[ind[i]:ind[i+1],ind[j]:ind[j+1]].sum()
-            C_C[i,j] = C_community[ind[i]:ind[i+1],ind[j]:ind[j+1]].sum()
+            C_H[i,j] = C_household[ind[i]:ind[i+1],ind[j]:ind[j+1]].sum()/M(i)/M(j)
+            C_S[i,j] = C_school[ind[i]:ind[i+1],ind[j]:ind[j+1]].sum()/M(i)/M(j)
+            C_W[i,j] = C_workplace[ind[i]:ind[i+1],ind[j]:ind[j+1]].sum()/M(i)/M(j)
+            C_C[i,j] = C_community[ind[i]:ind[i+1],ind[j]:ind[j+1]].sum()/M(i)/M(j)
     
     C = w_h*C_H + w_s*C_S + w_w*C_W + w_c*C_C
     rho = max(np.linalg.eigvals(C))

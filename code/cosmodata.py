@@ -34,6 +34,11 @@ avggroup = []
 for i in range(len(datesCosmo)-1):
     avggroup.append((float(feiernnoages[3][i+1])-1)/4)
     
+average_stringency = np.nanmean(NPItime)
+average_cosmo = np.nanmean(avggroup)
+
+NPItime_aligned = np.array(NPItime)/average_stringency*average_cosmo
+    
 #Plotten:
 #ax.scatter(cosmotimeline,avggroup, color='red', alpha=0.5)
 #ax.plot(t,NPItime, label='Stringency', color='green', zorder=5)
