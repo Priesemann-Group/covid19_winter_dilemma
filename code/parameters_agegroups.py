@@ -7,11 +7,11 @@ params_base = {
     #y0
     #Cs
 
-    #Auskommentiert sind die altersabhängigen Parameter
+    #Age-stratified parameters are commented out and taken from a parameter file
     
     'beta':0.5,
     'kappa': 0.8,
-    'sigma': 0.5,
+    'sigma': 1,
     #'delta': 0.0019,
     'rho': 0.25,
     #'gamma': 0.1,
@@ -58,30 +58,45 @@ params_base = {
     'feedback_off': False,
 }
 
-def get_params(scen=3):
+
+def get_params(scen=3, inspiration='Germany'):
 
     params = params_base.copy()
     for i in ['delta', 'gamma', 'gamma_ICU', 'Theta', 'Theta_ICU', 'alpha_u', 'alpha_w', 'u_base', 'w_base', 'chi_u', 'chi_w']:
         params[i] = DEUparams[i].values
 
-    params['y0'] = calc_y0(params)
+    params['y0'] = calc_y0(params, inspiration)
     params['Cs'] = calc_Cs()
     params.update( calc_ks(scen) )
 
     return params 
 
 
-def calc_y0(params):
+def calc_y0(params, inspiration='Germany'):
 
     darkfigure = 2.36
+    
+    translation={
+        'Germany': 'DEU',
+        'Portugal': 'POR',
+        'Poland': 'POL',
+        'Austria': 'AUS',
+        'Denmark': 'DSK'
+    }
+    
+    vacfrac = DEUparams[f'vacfrac_{translation[inspiration]}'].values
+        
+    frac = DEUparams['Anteil'].values
+    V_raw = frac * vacfrac * 1e6 
+    
+    W_V = V_raw * DEUparams['wanedfrac_V'].values
 
     M = DEUparams['Anteil'].values * 1e6
-    V_raw = DEUparams['V_raw'].values
     R_raw = DEUparams['R_raw'].values
     cases = DEUparams['cases'].values
     ICU_raw = DEUparams['ICU'].values
-    W_V = DEUparams['W_V'].values
-    W_R = DEUparams['W_R'].values
+
+    W_R = DEUparams['wanedfrac_R'].values*R_raw
 
 
     RRv = darkfigure*(R_raw-W_R)
@@ -95,8 +110,11 @@ def calc_y0(params):
     Etot = 1./params['rho']*cases*darkfigure
     Itot = 1./(params['gamma']+params['delta']+params['Theta'])* cases*darkfigure
 
-    S = M - Etot - Itot - ICU_raw - V - RRv - Wn - Wv
+    S = M  - V - RRv - Wn - Wv - Etot - Itot - ICU_raw
 
+    for i, s in enumerate(S):
+        if s <= 0:
+            S[i]=0
 
     En = (Wn) / (S+Wn+Wv) * Etot
     Ev = (Wv) / (S+Wn+Wv) * Etot
@@ -139,6 +157,11 @@ def calc_y0(params):
 
 
     S = M - (sum(y0.values())-y0['UC']-y0['WC'])
+    
+    for i, s in enumerate(S):
+        if s <= 0:
+            S[i]=0
+        
     y0.update({'S':S})
     
     y0_array = [y0['S'],y0['V'],y0['Wn'],y0['Wv'],y0['E'],y0['EBn'],y0['EBv'],y0['I'],y0['IBn'],y0['IBv'],

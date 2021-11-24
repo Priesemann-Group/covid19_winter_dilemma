@@ -1,7 +1,12 @@
 import numpy as np
 from matplotlib import pyplot as plt
+from scipy.special import gamma as gamma_func
 import matplotlib as mpl
 import cosmodata 
+import parameters_agegroups
+from scipy.optimize import curve_fit
+import pandas as pd
+from scipy.stats import pearsonr
 
 
 def set_rcParams(arial=False):
@@ -178,9 +183,12 @@ def overview_agegroups(model, path=None, silent=False, arial=False):
 
 
     for ag in range(ags):
-        ax1.plot(t,model.rho*(AGdata[:,4,ag]+AGdata[:,5,ag]+AGdata[:,6,ag])/(M[ag]/1e6), color=colors[ag])
+        #ax1.plot(t,model.rho*(AGdata[:,4,ag]+AGdata[:,5,ag]+AGdata[:,6,ag])/(M[ag]/1e6), color=colors[ag])
+        ax1.plot(t,model.rho*(AGdata[:,4,ag]+AGdata[:,5,ag]+AGdata[:,6,ag])/1e6, color=colors[ag])
         ax2.plot(t,(AGdata[:,6,ag])/(AGdata[:,4,ag]+AGdata[:,5,ag]+AGdata[:,6,ag]), color=colors[ag])
+        ax14.plot(t, (AGdata[:,10,ag]+AGdata[:,11,ag])/ (AGdata[:,10,:]+AGdata[:,11,:]).sum(axis=1) , color=colors[ag])
         # ax3 legend
+        #ax4.plot(t,(AGdata[:,10,ag]+AGdata[:,11,ag])/(M[ag]/1e6), color=colors[ag])
         ax4.plot(t,(AGdata[:,10,ag]+AGdata[:,11,ag])/(M[ag]/1e6), color=colors[ag])
         ax5.plot(t,AGdata[:,11,ag]/(AGdata[:,10,ag]+AGdata[:,11,ag]), color=colors[ag])
 #        ax6.plot(t,dD[:,ag]/(M[ag]/1e6), color=colors[ag])
@@ -192,17 +200,19 @@ def overview_agegroups(model, path=None, silent=False, arial=False):
         ax11.plot(t,d2[:,ag]/(M[ag]/1e6), color=colors[ag])
         ax12.plot(t,(d1a[:,ag]+d1b[:,ag]+d2[:,ag]), color=colors[ag])
         ax13.plot(t,np.array(list(map(Rt,t)))[:,ag], color=colors[ag])
-        ax14.plot(t,model.Gamma(t), color='black')
+        #ax14.plot(t,model.Gamma(t), color='black')
         ax15.plot(t,model.beta/model.gamma[ag] * model.Gamma(t) * np.array(list(map(Rt,t)))[:,ag], color=colors[ag])
 
     for i,ax in enumerate(axs):
 #        ax.set_title(titles[i])
         ax.set_ylim(0,None)
 
-    ax1.set_ylabel("Daily new cases\nper million in age group")
+    #ax1.set_ylabel("Daily new cases\nper million in age group")
+    ax1.set_ylabel("Daily new cases per\n 1e6 in total population")
     ax2.set_ylabel("Breakthrough share\nof daily new cases")
     #ax3 legend
-    ax4.set_ylabel("ICU occupancy\nper million in age group")
+    ax4.set_ylabel("ICU occupancy per\n 1e6 in total population")
+    #ax4.set_ylabel("ICU occupancy\nper million in age group")
     ax5.set_ylabel("Breakthrough share\nof ICU occupancy")
     ax6.set_ylabel("Cumulative deaths\nper million of population")
     ax7.set_ylabel("Susceptible fraction\nof the population")
@@ -212,7 +222,8 @@ def overview_agegroups(model, path=None, silent=False, arial=False):
     ax11.set_ylabel("Daily booster vac.\nper million in age group")
     ax12.set_ylabel("Daily total vac.\nper million of population")
     ax13.set_ylabel("Contacts")
-    ax14.set_ylabel("Seasonality")
+    ax14.set_ylabel("Share of total ICU\npatients")
+    #ax14.set_ylabel("Seasonality")
     ax15.set_ylabel("Total gross Rt")
 
     ax1.set_xticks([45, 135, 45+2*90, 45+3*90])
@@ -401,62 +412,204 @@ def sixpanels(models, path=None, silent=False, arial=False, ICUcap=None, full_wa
         
 
         
-def motivation(figure, shape= 'Vertical', path=None, silent=False, arial=False):
+def motivation(figure, path=None, silent=False, arial=False):
     set_rcParams(arial=arial)
+    #mpl.rcParams["axes.spines.right"] = False
     
-    if shape == 'Vertical':
-        fig = plt.figure(figsize=(2.5, 4), constrained_layout=True)
-        grid = fig.add_gridspec(ncols=1, nrows=2, wspace=0.1)
-    else:
-        fig = plt.figure(figsize=(4., 2), constrained_layout=True)
-        grid = fig.add_gridspec(ncols=2, nrows=1, wspace=0.1)
+
+    fig = plt.figure(figsize=(2.5+2.8, 4), constrained_layout=True)
+
+    
+    grid = fig.add_gridspec(ncols=2, nrows=2, wspace=0.1)
+
 
     ax1 = fig.add_subplot(grid[0])
     ax2 = fig.add_subplot(grid[1])
+    ax3 = fig.add_subplot(grid[2])
+    ax4 = fig.add_subplot(grid[3])
+
+    
+    def plot_willingness(ax):
+        ICU = np.linspace(0,100,100)
+        ubase = 0.5
+        umax = 0.9
+        alpha = 0.02
+        uwilling = ubase + (umax-ubase)*(1-np.exp(-0.02*ICU))
+        ax.plot(ICU, uwilling, color='black', lw=3)
+        yticks = [0.5, 0.9]
+        ax.set_yticks([ubase, umax])
+        ax.hlines(ubase, 0,100, ls=':', color='grey')
+        ax.hlines(umax, 0,100, ls=':', color='grey')
+        ax.text(10, ubase-0.1, 'Base acceptance', size=7, color='grey')
+        ax.text(10, umax+0.05, 'Maximal acceptance', size=7, color='grey')
+        ax.set_ylabel('Fraction willing\nto accept vaccine offer')
+        ax.set_xlabel('ICU occupancy per million') 
+        ax.set_ylim(0,1)
+        
+        ax.set_yticklabels(['$u_{base}$', '$u_{max}$'])
+        return None 
+
+    def plot_kernel_R(ax):
+        t1 = cosmodata.datesdict['2020-10-15']
+        t2 = cosmodata.datesdict['2020-12-15']
+        times = np.linspace(t1, t2, t2-t1)        
+        a = parameters_agegroups.params_base['a_Rt']
+        b = parameters_agegroups.params_base['b_Rt']        
+        gamma_cutoff= round(parameters_agegroups.params_base['gamma_cutoff'])        
+        gtimes = np.arange(-gamma_cutoff, 0, 1)
+        g = b**a * (-gtimes)**(a-1) * np.exp(-b*(-gtimes)) / gamma_func(a)        
+        convolution = []
+        for i, t in enumerate(times):
+            convolution.append((g*cosmodata.ICUtime[t1+i-gamma_cutoff:t1+i]).sum())
+            
+        ax.plot(times, cosmodata.ICUtime[t1:t2], label='ICU', color=figure['cICU'])
+        ax.plot(times, convolution, label='$H_R$')
+        
+        ax.set_ylabel('ICU occupancy\nper million')
+        ax.set_xlabel('2020')        
+        ax.set_xticks([cosmodata.datesdict['2020-11-01'], cosmodata.datesdict['2020-12-01']])
+        ax.set_xticklabels(['1. Nov.', '1. Dec.']) 
+        ax.legend()
+        return None
+    
+    def plot_kernel_vac(ax):
+        t1 = cosmodata.datesdict['2020-10-15']
+        t2 = cosmodata.datesdict['2020-12-15']
+        times = np.linspace(t1, t2, t2-t1)        
+        a = parameters_agegroups.params_base['a_vac']
+        b = parameters_agegroups.params_base['b_vac'] 
+        tau1 = round(parameters_agegroups.params_base['tau_vac1'])
+        tau2 = round(parameters_agegroups.params_base['tau_vac2'])
+        gamma_cutoff= round(parameters_agegroups.params_base['gamma_cutoff'])        
+        gtimes = np.arange(-gamma_cutoff, 0, 1)
+        g = b**a * (-gtimes)**(a-1) * np.exp(-b*(-gtimes)) / gamma_func(a)        
+        convolution_u = []
+        convolution_w = []
+        for i, t in enumerate(times):
+            convolution_u.append((g*cosmodata.ICUtime[t1+i-gamma_cutoff-tau1:t1+i-tau1]).sum())
+            convolution_w.append((g*cosmodata.ICUtime[t1+i-gamma_cutoff-tau2:t1+i-tau2]).sum())
+            
+        ax.plot(times, cosmodata.ICUtime[t1:t2], label='ICU', color=figure['cICU'])
+        ax.plot(times, convolution_u, label='$H_u$')
+        ax.plot(times, convolution_w, label='$H_w$')
+        
+        ax.set_ylabel('ICU occupancy\nper million')
+        ax.set_xlabel('2020')        
+        ax.set_xticks([cosmodata.datesdict['2020-11-01'], cosmodata.datesdict['2020-12-01']])
+        ax.set_xticklabels(['1. Nov.', '1. Dec.']) 
+        ax.legend()
+        return None 
     
     
-    def plot_cosmo(ax):
-        ax.scatter(cosmodata.cosmotimeline,cosmodata.avggroup, color='red', label='Compliance', alpha=0.5, s=8)
-        #NPItime_aligned 
-        ax.plot(cosmodata.t,cosmodata.NPItime, label='Stringency', color='green', zorder=5)
-        ax.set_ylabel("Stringency and\ncompliance")
-        ax.set_xlabel('2020            2021')
+    def plot_cosmovsICU(ax):
+        ax.scatter(cosmodata.cosmotimelineICU[:24], 1-np.array(cosmodata.avggroup[:24]), color='red', alpha=0.5, s=8, label='Survey data')
+        ax.scatter(cosmodata.cosmotimelineICU[24:], 1-np.array(cosmodata.avggroup[24:]), color='orange', alpha=0.5, s=8)
+        ax.set_ylabel("0=always, 1=never")
+        ax.set_xlabel("ICU occupancy per million")
+        corr1,_ = pearsonr(cosmodata.cosmotimelineICU[:24], cosmodata.avggroup[:24])
+        print('Linear correlation:', corr1)
+        corr2,_ = pearsonr(cosmodata.cosmotimelineICU[24:], cosmodata.avggroup[24:])
+        print('Linear correlation:', corr2)
+        # CURVEFIT 
+        ICUcap = 35
+        epsilon = 1 
+        def f(ICU, saturation, slope):
+            return saturation - slope*epsilon*np.log(np.e**(1/epsilon*(ICUcap-ICU))+1)
+        popt, pcov = curve_fit(f, cosmodata.cosmotimelineICU, cosmodata.avggroup)
+        print('Parameters:',popt)
+        print('One standard deviation:',np.sqrt(np.diag(pcov)))
+        print('Relative error:', np.sqrt(np.diag(pcov))/np.array(popt))
+        timeline = np.linspace(0,np.max(cosmodata.cosmotimelineICU), 100)
+        ax.plot(timeline, 1-f(timeline, popt[0], popt[1]), label='Curve Fit', color=figure['cFit'])
+        #ax.legend(bbox_to_anchor=(0, 1.3))
+        popt, pcov = curve_fit(f, cosmodata.cosmotimelineICU[24:], cosmodata.avggroup[24:])
+        ax.plot(timeline, 1-f(timeline, popt[0], popt[1]), color='orange')
+        popt, pcov = curve_fit(f, cosmodata.cosmotimelineICU[:24], cosmodata.avggroup[:24])
+        ax.plot(timeline, 1-f(timeline, popt[0], popt[1]), color='red')
+        
+        ax.set_ylim(0,None)
+        ax.legend(loc='upper right')
+        return None 
+    
+    def plot_cosmoStringency(ax):
+        ax.set_xlabel('2020         2021')
         ax.set_xticks([cosmodata.datesdict['2020-04-15'], cosmodata.datesdict['2020-10-15'], 
                        cosmodata.datesdict['2021-04-15'], cosmodata.datesdict['2021-10-15']])
-        ax.set_xticklabels(['Apr.', 'Oct.', 'Apr.', 'Oct.'])
-        ax.axvspan(cosmodata.datesdict['2020-10-15'], cosmodata.datesdict['2020-12-15'], ymin=0, ymax=1, color='gray', alpha=0.2) 
-        ax.legend(loc='lower right')
+        ax.set_xticklabels(['Apr.', 'Oct.', 'Apr.', 'Oct.'])      
+        ax.plot(cosmodata.t,cosmodata.NPItime, color=figure['cStringency'], label='NPI stringency', zorder=5)
+        ax.set_ylabel("1 = strict, always\n0 = mild, never")
+        ax.set_ylim(0.45,1)
+        ax.scatter(cosmodata.cosmotimeline,cosmodata.avggroup, label='Contact reduction',color=figure['cCosmodata'], alpha=0.5, s=8)
+        ax.legend(loc='upper right', bbox_to_anchor=(1.1, 1.3), ncol=1)       
+        ax.axvspan(cosmodata.datesdict['2020-10-15'], cosmodata.datesdict['2020-12-15'], ymin=0, ymax=1, color='gray', alpha=0.2)        
+        return None 
+    
+    def plot_cosmoICU(ax):
+        ax.set_xlabel('2020         2021')
+        ax.set_xticks([cosmodata.datesdict['2020-04-15'], cosmodata.datesdict['2020-10-15'], 
+                       cosmodata.datesdict['2021-04-15'], cosmodata.datesdict['2021-10-15']])
+        ax.set_xticklabels(['Apr.', 'Oct.', 'Apr.', 'Oct.'])      
+        ax.plot(cosmodata.t,np.array(cosmodata.ICUtime), color=figure['cICU'], label='ICU', zorder=5)
+        ax.set_ylabel("ICU occupancy per million")
+        ax.set_ylim(0,None)
+        ax2 = ax.twinx()
+        ax2.scatter(cosmodata.cosmotimeline[:24],cosmodata.avggroup[:24], label='2021',color='red', alpha=0.5, s=8)
+        ax2.scatter(cosmodata.cosmotimeline[24:],cosmodata.avggroup[24:], label='2020',color='orange', alpha=0.5, s=8)
+        ax2.set_ylabel("1 = strict, always\n0 = mild, never")
+        ax2.set_ylim(0.45,1)
+        ax2.spines['right'].set_visible(True)
+        ax2.vlines(cosmodata.datesdict['2021-01-01'], 0,1, color='gray', ls=':')
+        #Stringecy:
+        #ax2.plot(cosmodata.t,cosmodata.NPItime, color=figure['cStringency'], label='NPI stringency', zorder=5)
+             
         return None 
     
     def plot_romania(ax):
         startdate='2021-03-15'
-        startpoint = cosmodata.datesdict[startdate]
-        ax.plot(cosmodata.ROU_t[startpoint:], cosmodata.ROU_ICUtime[startpoint:], label='ICU')
-        ax.plot(cosmodata.ROU_t[startpoint:], np.array(cosmodata.ROU_vaccinetime)[startpoint:]/100000*80, label='Vaccines')
-        ax.set_ylabel("ICU occupancy and\ndaily vaccinations\nin Romania")
+        enddate='2021-11-01'
+        startpoint = cosmodata.ROU_datesdict[startdate]
+        endpoint = cosmodata.ROU_datesdict[enddate]        
         ax.set_xlabel('2021')
         ax.set_xticks([cosmodata.ROU_datesdict['2021-04-15'], cosmodata.ROU_datesdict['2021-07-15'], 
                        cosmodata.ROU_datesdict['2021-10-15']])
-        ax.set_xticklabels(['Apr.', 'July', 'Oct.'])
-        ax.set_yticks([])
-        ax.legend(loc='best')
+        ax.set_xticklabels(['Apr.', 'July', 'Oct.'])        
+        lns1 = ax.plot(cosmodata.ROU_t[startpoint:endpoint], cosmodata.ROU_ICUtime[startpoint:endpoint], label='ICU', color=figure['cICU'])
+        ax.set_ylabel('ICU occupancy per million')
+        ax2 = ax.twinx()
+        lns2 = ax2.plot(cosmodata.ROU_t[startpoint:endpoint], np.array(cosmodata.ROU_vaccinetime)[startpoint:endpoint], color=figure['cVaccines'], label='Vaccines')
+        ax2.set_ylabel('Daily vaccines per million')
+        ax2.spines['right'].set_visible(True)
+        
+        lns = lns1+lns2
+        labs = [l.get_label() for l in lns]
+        ax.legend(lns, labs, loc='upper left')
         return None 
     
     #----------------------------------------- Plotting ------------------------------------------------
     
     translation = {
-        'Cosmo': plot_cosmo,
+        'CosmoStringency': plot_cosmoStringency,
+        'CosmoICU': plot_cosmoICU,
         'Romania': plot_romania,
+        'CosmovsICU': plot_cosmovsICU,
+        'Willingness': plot_willingness,
+        'KernelR': plot_kernel_R,
+        'KernelV': plot_kernel_vac
     }
     
     
     plotting_dict ={
     ax1: translation[figure['ax1']],
-    ax2: translation[figure['ax2']]
+    ax2: translation[figure['ax2']],
+    ax3: translation[figure['ax3']],
+    ax4: translation[figure['ax4']],
     }
     
-    for ax in [ax1,ax2]:   
+    for ax in [ax1,ax2, ax3, ax4]:   
         plotting_dict[ax](ax)
+    
+    for ax, label in zip([ax1,ax2,ax3,ax4], ['a','b','c','d']):
+        ax.text(-.12,1.1,label, size=12, weight='bold', color='black', transform=ax.transAxes)
 
     fig.align_ylabels()
 
@@ -465,7 +618,93 @@ def motivation(figure, shape= 'Vertical', path=None, silent=False, arial=False):
     
         
 #-------------------------------------------------------------------------------------------------------------------        
+      
+    
+def motivation2(figure, path=None, silent=False, arial=False):
+    set_rcParams(arial=arial)
+    #mpl.rcParams["axes.spines.right"] = False
+    
+
+    fig = plt.figure(figsize=(2.5+2.5+2, 2), constrained_layout=True)
+
+    
+    grid = fig.add_gridspec(ncols=3, nrows=1, wspace=0.1)
+
+
+    ax1 = fig.add_subplot(grid[0])
+    ax2 = fig.add_subplot(grid[1])
+    ax3 = fig.add_subplot(grid[2])
+    
+    def plot_cosmoStringency(ax):
+        ax.set_xlabel('2020         2021')
+        ax.set_xticks([cosmodata.datesdict['2020-04-15'], cosmodata.datesdict['2020-10-15'], 
+                       cosmodata.datesdict['2021-04-15'], cosmodata.datesdict['2021-10-15']])
+        ax.set_xticklabels(['Apr.', 'Oct.', 'Apr.', 'Oct.'])      
+        ax.plot(cosmodata.t,cosmodata.NPItime, color=figure['cStringency'], label='NPI stringency', zorder=5)
+        ax.set_ylabel("1 = strict, always\n0 = mild, never")
+        ax.set_ylim(0.45,1)
+        ax.scatter(cosmodata.cosmotimeline,cosmodata.avggroup, label='Contact reduction',color=figure['cCosmodata'], alpha=0.5, s=8)
+        ax.legend(loc='upper right', bbox_to_anchor=(1.1, 1.3), ncol=1)       
+        ax.axvspan(cosmodata.datesdict['2020-10-15'], cosmodata.datesdict['2020-12-15'], ymin=0, ymax=1, color='gray', alpha=0.2)        
+        return None 
+    
+    def plot_matrix(ax):
+        matrix = np.flip(parameters_agegroups.calc_Cs()[1], axis=0)
+        ax.imshow(matrix, origin='lower')
+        ax.figure.colorbar(ax.imshow(matrix), ax=ax, cmap="YlGn")
         
+        agegroups = ["0-19", "20-39", "40-59", "60-69","70-79", "80+"]
+        ax.set_xticks(np.arange(6))
+        ax.set_yticks(np.arange(6))
+        ax.set_xticklabels(agegroups)
+        ax.set_yticklabels(np.flip(agegroups))
+        plt.setp(ax.get_xticklabels(), rotation=45, ha="right",rotation_mode="anchor")
+        ax.set_title('School contacts')
+        return None
+    
+    def plot_reduction(ax):
+        data = pd.read_csv('../parameters/scenariosDefinition.csv', sep=';', header=0)
+        Hmax = 35
+
+        highs= 'schoollow'
+        lows = 'schoolhigh'
+        hline1 = np.linspace(0,Hmax,100)
+        hline2 = np.linspace(Hmax,1.5*Hmax,100)
+        
+        for i, c in zip([0,2,4], ['c1','c2','c3']):
+            ax.plot(hline1, (data[lows][i]-(data[lows][i]-data[highs][i])/Hmax*hline1), color=figure[c], label=f'Scen.{i+1}')
+            ax.plot(hline2, (data[highs][i]*np.ones(len(hline2))), color=figure[c])
+        ax.set_title('Contact reduction\nin schools')
+        ax.set_xlabel('ICU occupancy per million')
+        ax.set_ylabel('0=strong reduction\n1=no reduction') 
+        ax.set_ylim(0,1.05)
+        ax.legend()
+        return None 
+    
+    translation = {
+        'CosmoStringency': plot_cosmoStringency,
+        'Matrix': plot_matrix,
+        'Reduction': plot_reduction
+    }
+    
+    
+    plotting_dict ={
+    ax1: translation[figure['ax1']],
+    ax2: translation[figure['ax2']],
+    ax3: translation[figure['ax3']],
+    }
+    
+    for ax in [ax1,ax2, ax3]:   
+        plotting_dict[ax](ax)
+    
+    for ax, label in zip([ax1,ax2,ax3], ['A','B','C']):
+        ax.text(-.12,1.1,label, size=12, weight='bold', color='black', transform=ax.transAxes)
+
+    #fig.align_ylabels()
+
+    if not silent: plt.show()
+    if path!=None: fig.savefig(path)
+
         
         
 def sixpanels_flexible(models, figure, path=None, silent=False, arial=False, ICUcap=None, full_wave=None):
@@ -494,12 +733,26 @@ def sixpanels_flexible(models, figure, path=None, silent=False, arial=False, ICU
         'low':'#0099B4FF', 'mid':'#00468BFF', 'high':'#1B1919FF', 'free':'#1B1919FF',
         'lowL':'#FFFFFFFF', 'midL':'#FFFFFFFF', 'highL':'#FFFFFFFF',
 #        'lowL':'#0099B499', 'midL':'#00468B99', 'highL':'#1B191999',
-        'line':'#ADB6B6FF', 'ICUcap':'#FFAAAA',
+        'line':'#ADB6B6FF', 'ICUcap':'red',
         'now':'#ADB6B6FF', 'nowL':'#FFFFFFFF',
 #        'now':'#93dfedFF', 'nowL':'#93dfed99',
         'FW':'#ED0000FF',
     }
-    main_colors = [colors['high'],colors['mid'],colors['low']]
+    
+    ccountry= {
+        'Germany': 'orange',
+        'Denmark': 'darkred',
+        'Portugal': 'green',
+        'Austria': 'red',
+        'Poland': 'grey'
+    }
+    
+    if figure['type'] == 'countries':
+        main_colors = [ccountry[figure['Scens'][i]] for i in [0,1,2]]
+    
+    else: 
+        main_colors = [figure['c1'], figure['c2'], figure['c3']]
+    #main_colors = [colors['high'],colors['mid'],colors['low']]
     main_colors_L = [colors['highL'],colors['midL'],colors['lowL']]
 
 
@@ -513,37 +766,19 @@ def sixpanels_flexible(models, figure, path=None, silent=False, arial=False, ICU
         ax.set_xticks([45, 135, 45+2*90, 45+3*90])
         ax.set_xticklabels(['Oct.','Jan.','Apr.','July'])
         return None
-    
-    def plot_cosmo(ax):
-        ax.scatter(cosmodata.cosmotimeline,cosmodata.avggroup, color='red', alpha=0.5, s=8)
-        ax.plot(cosmodata.t,cosmodata.NPItime, label='Stringency', color='green', zorder=5)
-        ax.set_ylabel("Stringency and\ncompliance")
-        ax.set_xlabel('2020            2021')
-        ax.set_xticks([cosmodata.datesdict['2020-04-15'], cosmodata.datesdict['2020-10-15'], 
-                       cosmodata.datesdict['2021-04-15'], cosmodata.datesdict['2021-10-15']])
-        ax.set_xticklabels(['Apr.', 'Oct.', 'Apr.', 'Oct.'])
-        ax.axvspan(cosmodata.datesdict['2020-10-15'], cosmodata.datesdict['2020-12-15'], ymin=0, ymax=1, color='gray', alpha=0.2) 
-        return None 
-    
-    def plot_romania(ax):
-        startdate='2021-03-15'
-        startpoint = cosmodata.datesdict[startdate]
-        ax.plot(cosmodata.ROU_t[startpoint:], cosmodata.ROU_ICUtime[startpoint:])
-        ax.plot(cosmodata.ROU_t[startpoint:], np.array(cosmodata.ROU_vaccinetime)[startpoint:]/100000*80)
-        ax.set_ylabel("ICU occupancy and\ndaily vaccinations\nin Romania")
-        ax.set_xlabel('2021')
-        ax.set_xticks([cosmodata.ROU_datesdict['2021-04-15'], cosmodata.ROU_datesdict['2021-07-15'], 
-                       cosmodata.ROU_datesdict['2021-10-15']])
-        ax.set_xticklabels(['Apr.', 'July', 'Oct.'])
-        ax.set_yticks([])
-        return None 
-    
+        
     def plot_NPI(ax):
         for i, m in enumerate([m1,m2,m3]):
             ax.plot(t, list(map(Rt, [m]*len(t), t)), color=main_colors[i], zorder=-i)
         plot_axes_winter(ax)
         ax.set_ylabel("Contact levels\ninfluenced by NPIs")
         ax.text(0.54,0.15,'Lifting of\nrestrictions', size=7, color=colors['line'], transform=ax.transAxes)
+        for i, pos in enumerate([0.9,0.75,0.6]):
+            s = figure['Scens'][i]
+            if figure['type'] == 'countries':
+                ax.text(200,pos, f'Ex.{s}', size=7, color=main_colors[i])
+            else: 
+                ax.text(200,pos, f'Scenario{s}', size=7, color=main_colors[i])
         return None
     
     def plot_incidence(ax):
@@ -566,6 +801,18 @@ def sixpanels_flexible(models, figure, path=None, silent=False, arial=False, ICU
             mfull = full_wave
             d = mfull.chopped_data().sum(axis=2)
             ax.plot(t, d[:,10]+d[:,11], color=colors['FW'], ls=':')
+            
+        if ICUcap != None:
+            maxicu = 0
+            for i, m in enumerate([m1,m2,m3]):
+                if np.max((data[i][:,10]+data[i][:,11])) >= maxicu:
+                    maxicu = np.max(data[i][:,10]+data[i][:,11])
+            if maxicu >= ICUcap-5:
+                ylim = ax.get_ylim()
+                ax.hlines(ICUcap,0, 0.95*360, color='black', ls='--', zorder=-1)
+                #ax.axhspan(ICUcap-1,ICUcap+1, alpha=0.8, xmax=0.9, facecolor=colors['ICUcap'], edgecolor=None, zorder=-1)
+                ax.text(1.0,ICUcap/ylim[1]-0.2,'Estimated\nICU capacity', size=7, color='red', rotation=-90, transform=ax3.transAxes)
+                ax.scatter(370,ICUcap+1, marker="<", color='red')
         return None
     
     def plot_vaccinations(ax):
@@ -685,8 +932,6 @@ def sixpanels_flexible(models, figure, path=None, silent=False, arial=False, ICU
         'Rt_EV': plot_Rt_eigenvalue,
         'Rt_OBS': plot_Rt_observed,
         'Rt_OBS2': plot_Rt_observed2,
-        'Cosmo': plot_cosmo,
-        'Romania': plot_romania,
         'Patients': plot_bar_patients
     }
     
@@ -708,25 +953,10 @@ def sixpanels_flexible(models, figure, path=None, silent=False, arial=False, ICU
     # --------------------------------------- General Axis Things -----------------------------------
     
 
-    for ax, label in zip([ax1,ax2,ax3,ax4,ax5,ax6], ['A','B','C','D','E','F']):
+    for ax, label in zip([ax1,ax2,ax3,ax4,ax5,ax6], ['a','b','c','d','e','f']):
         ax.text(-.12,1.1,label, size=12, weight='bold', color='black', transform=ax.transAxes)
         
         
-    # Not touched yet:
-
-    if ICUcap != None:
-        ax3.axhspan(ICUcap-2,ICUcap+2, xmax=0.92, facecolor=colors['ICUcap'], edgecolor=None, zorder=-1)
-        ax3.text(1.0,0.3,'ICU capacity', size=7, color='red', rotation=-90, transform=ax3.transAxes)
-        ax3.scatter(380,ICUcap, marker="<", color='grey')
-    '''
-    if full_wave != None:
-        m = full_wave
-        d = m.chopped_data().sum(axis=2)
-        ax2.plot(t, m.rho*(d[:,4]+d[:,5]+d[:,6]), color=colors['FW'], ls=':')
-        ax3.plot(t, d[:,10]+d[:,11], color=colors['FW'], ls=':')
-        ax2.text(0.58,0.72,'Full wave', size=7, color=colors['FW'], transform=ax2.transAxes)
-        ax3.text(0.58,0.72,'Full wave', size=7, color=colors['FW'], transform=ax3.transAxes)
-    '''
 
     fig.align_ylabels()
 
