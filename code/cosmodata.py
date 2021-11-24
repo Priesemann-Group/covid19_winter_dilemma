@@ -2,20 +2,30 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 from scipy.special import gamma as gammafunc
+from scipy.stats import pearsonr
 
 
-germany_owid = pd.read_csv('../parameters/germany_ourworldindata.csv', sep=',', header=None, usecols=[3,18,45])
-owid_ICU = germany_owid[18]
-owid_NPI = germany_owid[45]
-owid_dates = germany_owid[3]
+#germany_owid = pd.read_csv('../parameters/germany_ourworldindata.csv', sep=',', header=None, usecols=[3,18,45])
+owid_raw = pd.read_csv('../parameters/owid-covid-data.csv', sep=',', header=0)
+owid = owid_raw.dropna(axis=0, how='any', subset=['icu_patients_per_million', 'date', 'stringency_index'])
+
+germany_owid=owid[owid['iso_code'] == 'DEU']
+                          
+#owid_ICU = germany_owid[18]
+#owid_NPI = germany_owid[45]
+#owid_dates = germany_owid[3]
+
+owid_ICU = list(germany_owid['icu_patients_per_million'])
+owid_NPI = list(germany_owid['stringency_index'])
+owid_dates = list(germany_owid['date'])
 
 
 ICUtime=[]
 NPItime =[]
 datesdict = {}
-for times, dates in zip(range(len(owid_dates)-1), owid_dates[1:]):
-    ICUtime.append(float(owid_ICU[1+times]))
-    NPItime.append(float(owid_NPI[1+times])/100)
+for times, dates in zip(range(len(owid_dates)), owid_dates):
+    ICUtime.append(float(owid_ICU[times]))
+    NPItime.append(float(owid_NPI[times])/100)
     datesdict[dates] = times
     
 t=np.linspace(0,len(NPItime),len(NPItime))
@@ -23,16 +33,22 @@ t=np.linspace(0,len(NPItime),len(NPItime))
 
 feiernnoages = pd.read_csv('../parameters/PrivateFeiern_no_ages.csv', sep=',', header=None, usecols=[0,3])
 
-datesCosmo = feiernnoages[0]
+datesCosmo = feiernnoages[0][:-1]
 
 cosmotimeline=[]
+cosmotimelineICU=[]
 for i in datesCosmo[1:]:
     cosmotimeline.append(datesdict[i])
+    cosmotimelineICU.append(ICUtime[datesdict[i]])
 
 avggroup = []
-
+cosmoraw = []
 for i in range(len(datesCosmo)-1):
     avggroup.append((float(feiernnoages[3][i+1])-1)/4)
+    cosmoraw.append(float(feiernnoages[3][i+1]))
+    
+corr, _ = pearsonr(cosmoraw, cosmotimelineICU)
+print('Correlation:' , corr)
     
 average_stringency = np.nanmean(NPItime)
 average_cosmo = np.nanmean(avggroup)
@@ -43,22 +59,24 @@ NPItime_aligned = np.array(NPItime)/average_stringency*average_cosmo
 #ax.scatter(cosmotimeline,avggroup, color='red', alpha=0.5)
 #ax.plot(t,NPItime, label='Stringency', color='green', zorder=5)
 
+#ax.plot(cosmotimelineICU, avggroup)
+
 
 
 # ----------------------------------------- ROMANIA -----------------------------------------------
 
-romania_owid = pd.read_csv('../parameters/romania_ourworldindata.csv', sep=',', header=None, usecols=[3,18,39])
+romania_owid = pd.read_csv('../parameters/romania_ourworldindata.csv', sep=',', header=None, usecols=[3,18,44])
                            
 ROU_owid_ICU = romania_owid[18]
-ROU_owid_vaccines = romania_owid[39]
+ROU_owid_vaccines = romania_owid[44]
 ROU_owid_dates = romania_owid[3]
 
-ROU_t=np.linspace(0,len(NPItime),len(NPItime))
+ROU_t=np.linspace(0,len(ROU_owid_dates)-1,len(ROU_owid_dates)-1)
 
 ROU_ICUtime=[]
 ROU_vaccinetime=[]
 ROU_datesdict = {}
-for times, dates in zip(range(len(ROU_owid_dates)-1), owid_dates[1:]):
+for times, dates in zip(range(len(ROU_owid_dates)-1), ROU_owid_dates[1:]):
     ROU_ICUtime.append(float(ROU_owid_ICU[1+times]))
     ROU_vaccinetime.append(float(ROU_owid_vaccines[1+times]))
     ROU_datesdict[dates] = times
