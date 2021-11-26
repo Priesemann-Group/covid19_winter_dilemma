@@ -93,6 +93,8 @@ class Model:
         self.w_max = 1-chi_w
         self.t_min = self.gamma_cutoff + max(self.tau_vac1,self.tau_vac2)
 
+        self.exp = 1.0
+
 
     def time2index(self, t):
         return round((t+self.t_min)/self.step_size)
@@ -118,8 +120,11 @@ class Model:
     def I_eff(self, I, IBn, IBv):
         return (I + self.sigma*(IBn+IBv)) + self.influx*self.M/self.M.sum()
 
+    def pre_Gamma(self, t):
+        return np.cos(2*np.pi*(t+self.d_0-self.d_mu)/360.)
+
     def Gamma(self, t):
-        return 1 + self.mu*np.cos(2*np.pi*(t+self.d_0-self.d_mu)/360.)
+        return 1 + self.mu * np.sign(self.pre_Gamma(t)) * np.abs(self.pre_Gamma(t))**self.exp
 
     def k_lowH(self, t):
         if t<180-self.epsilon_free:

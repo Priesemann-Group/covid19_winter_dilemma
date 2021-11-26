@@ -417,37 +417,91 @@ def motivation(figure, path=None, silent=False, arial=False):
     #mpl.rcParams["axes.spines.right"] = False
     
 
-    fig = plt.figure(figsize=(2.5+2.8, 4), constrained_layout=True)
+    fig = plt.figure(figsize=(7, 3.8), constrained_layout=True)
 
     
-    grid = fig.add_gridspec(ncols=2, nrows=2, wspace=0.1)
+    grid = fig.add_gridspec(ncols=3, nrows=2, wspace=0.1)
 
 
     ax1 = fig.add_subplot(grid[0])
     ax2 = fig.add_subplot(grid[1])
     ax3 = fig.add_subplot(grid[2])
     ax4 = fig.add_subplot(grid[3])
-
+    ax5 = fig.add_subplot(grid[4])
+    ax6 = fig.add_subplot(grid[5])
     
+
+    def plot_contact_feedback(ax):
+        kmin = 0.3
+        kmax = 0.8
+        ICUcap = 35
+        xmax = 60
+        ax.plot([0,ICUcap],[kmax,kmin], color='black')
+        ax.plot([ICUcap,xmax],[kmin,kmin], color='black')
+        ax.set_ylim(0,1)
+        ax.set_xlabel("ICU occupancy per million")
+        ax.set_ylabel("level of contagious\ncontacts")
+        ax.set_yticks([0,kmin,kmax,1])
+        ax.set_yticklabels(['0','$k_{min}$','$k_{max}$','1'])
+        ax.axhline(kmin, ls=':', color='grey', zorder=0)
+        ax.axhline(kmax, ls=':', color='grey', zorder=0)
+        ax.text(5, kmin-0.1, 'due to current NPIs', size=7, color='grey')
+        ax.text(5, kmax+0.05, 'allowed by current NPIs', size=7, color='grey')
+
+
+
     def plot_willingness(ax):
         ICU = np.linspace(0,100,100)
         ubase = 0.5
         umax = 0.9
         alpha = 0.02
-        uwilling = ubase + (umax-ubase)*(1-np.exp(-0.02*ICU))
-        ax.plot(ICU, uwilling, color='black', lw=3)
-        yticks = [0.5, 0.9]
-        ax.set_yticks([ubase, umax])
-        ax.hlines(ubase, 0,100, ls=':', color='grey')
-        ax.hlines(umax, 0,100, ls=':', color='grey')
+        scen1 = 15
+        scen2 = 65
+        def u_w(ICU): return ubase + (umax-ubase)*(1-np.exp(-alpha*ICU))
+        ax.plot(ICU, u_w(ICU), color='black')
+        ax.scatter(scen1,u_w(scen1), marker='d', color=figure['cVac1'], zorder=2.5)
+        ax.scatter(scen2,u_w(scen2), marker='d', color=figure['cVac2'], zorder=2.5)
+        ax.hlines(u_w(scen1), 0, scen1, ls='--', color=figure['cVac1'], zorder=0)
+        ax.hlines(u_w(scen2), 0, scen2, ls='--', color=figure['cVac2'], zorder=0)
+        ax.axhline(ubase, ls=':', color='grey', zorder=0)
+        ax.axhline(umax, ls=':', color='grey', zorder=0)
         ax.text(10, ubase-0.1, 'Base acceptance', size=7, color='grey')
         ax.text(10, umax+0.05, 'Maximal acceptance', size=7, color='grey')
-        ax.set_ylabel('Fraction willing\nto accept vaccine offer')
-        ax.set_xlabel('ICU occupancy per million') 
+        ax.set_xlabel("ICU occupancy\nper million")
+        ax.set_ylabel("Fraction of the population\nwanting to be vaccinated")
         ax.set_ylim(0,1)
-        
-        ax.set_yticklabels(['$u_{base}$', '$u_{max}$'])
-        return None 
+        ax.set_yticks([0,.5,1])
+#        ax.set_yticks([ubase, umax])
+#        ax.set_yticklabels(['$u_{base}$', '$u_{max}$'])
+        return None
+
+    def plot_vaccination(ax):
+        ubase = 0.5
+        umax = 0.9
+        alpha = 0.02
+        time_u = 1
+        epsilon_u = 0.01
+        scen1 = 15
+        scen2 = 65
+        def u_w(ICU): return ubase + (umax-ubase)*(1-np.exp(-alpha*ICU))
+        def softplus(slope, base, threshold, epsilon):
+            return lambda x: slope*epsilon*np.log(np.exp(1/epsilon*(threshold-x))+1) + base
+        def phi(ICU, UC, frac=1): return softplus(frac/time_u, 0, u_w(ICU), epsilon_u)(UC)
+        x = np.linspace(0,1,100)
+        ax.plot(x,phi(scen1, x), color=figure['cVac1'])
+        ax.plot(x,phi(scen2, x), color=figure['cVac2'])
+        ax.set_ylim(0,1)
+        ax.set_yticks([0,.5,1])
+        ax.scatter(u_w(scen1),0.6, marker='d', color=figure['cVac1'], zorder=10, clip_on=False)
+        ax.scatter(u_w(scen2),0.6, marker='d', color=figure['cVac2'], zorder=10, clip_on=False)
+        ax.vlines(u_w(scen1), 0, 0.5, ls='--', color=figure['cVac1'])
+        ax.vlines(u_w(scen2), 0, 0.5, ls='--', color=figure['cVac2'])
+        ax.axvline(ubase, ymax=0.65, ls=':', color='gray', zorder=0)
+        ax.text(0.4,0.7,'minimal\nvaccine\nuptake', size=7, color='gray', transform=ax.transAxes)
+        ax.axvline(umax, ymax=0.65, ls=':', color='gray', zorder=0)
+        ax.text(0.76,0.7,'maximal\nvaccine\nuptake', size=7, color='gray', transform=ax.transAxes)
+        ax.set_xlabel("Fraction of population\nalready vaccinated")
+        ax.set_ylabel("Fraction of population\nseeking first vaccination")
 
     def plot_kernel_R(ax):
         t1 = cosmodata.datesdict['2020-10-15']
@@ -579,6 +633,9 @@ def motivation(figure, path=None, silent=False, arial=False):
         lns2 = ax2.plot(cosmodata.ROU_t[startpoint:endpoint], np.array(cosmodata.ROU_vaccinetime)[startpoint:endpoint], color=figure['cVaccines'], label='Vaccines')
         ax2.set_ylabel('Daily vaccines per million')
         ax2.spines['right'].set_visible(True)
+
+        ax.set_ylim(0,None)
+        ax2.set_ylim(0,None)
         
         lns = lns1+lns2
         labs = [l.get_label() for l in lns]
@@ -593,8 +650,10 @@ def motivation(figure, path=None, silent=False, arial=False):
         'Romania': plot_romania,
         'CosmovsICU': plot_cosmovsICU,
         'Willingness': plot_willingness,
+        'Vaccination': plot_vaccination,
         'KernelR': plot_kernel_R,
-        'KernelV': plot_kernel_vac
+        'KernelV': plot_kernel_vac,
+        'ContactFeedback': plot_contact_feedback,
     }
     
     
@@ -603,12 +662,14 @@ def motivation(figure, path=None, silent=False, arial=False):
     ax2: translation[figure['ax2']],
     ax3: translation[figure['ax3']],
     ax4: translation[figure['ax4']],
+    ax5: translation[figure['ax5']],
+    ax6: translation[figure['ax6']],
     }
     
-    for ax in [ax1,ax2, ax3, ax4]:   
+    for ax in [ax1,ax2, ax3, ax4, ax5, ax6]:
         plotting_dict[ax](ax)
     
-    for ax, label in zip([ax1,ax2,ax3,ax4], ['a','b','c','d']):
+    for ax, label in zip([ax1,ax2,ax3,ax4,ax5,ax6], ['a','b','c','d','e','f']):
         ax.text(-.12,1.1,label, size=12, weight='bold', color='black', transform=ax.transAxes)
 
     fig.align_ylabels()
