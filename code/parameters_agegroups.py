@@ -74,7 +74,7 @@ def get_params(scen=3, inspiration='Germany'):
 
 def calc_y0(params, inspiration='Germany'):
 
-    darkfigure = 2.36
+    darkfigure = 2
     
     translation={
         'Germany': 'DEU',
@@ -84,37 +84,55 @@ def calc_y0(params, inspiration='Germany'):
         'Denmark': 'DSK'
     }
     
-    vacfrac = DEUparams[f'vacfrac_{translation[inspiration]}'].values
-        
+    vacfrac = DEUparams[f'vacfrac_{translation[inspiration]}'].values    
     frac = DEUparams['Anteil'].values
-    V_raw = frac * vacfrac * 1e6 
     
-    W_V = V_raw * DEUparams['wanedfrac_V'].values
-
-    M = DEUparams['Anteil'].values * 1e6
     R_raw = DEUparams['R_raw'].values
     cases = DEUparams['cases'].values
     ICU_raw = DEUparams['ICU'].values
+    
+    wvfrac = DEUparams['wanedfrac_V'].values
+    wrfrac = DEUparams['wanedfrac_R'].values
+    
+    #W_V = V_raw * DEUparams['wanedfrac_V'].values
+    #W_R = DEUparams['wanedfrac_R'].values*R_raw
+    M = frac * 1e6
+    
+    V_raw = M * vacfrac
+    R_raw = R_raw*darkfigure
+    
+    Rv_all = V_raw*R_raw/M #Overlap
+    
+    V_all = V_raw - Rv_all
+    V = V_all*(1-wvfrac)
+    
+    R_all = R_raw-Rv_all
+    
+    R = R_all*(1-wrfrac)
+    Rv = Rv_all*(1-wvfrac) #to discuss (if wrfrac or wvfrac)
 
-    W_R = DEUparams['wanedfrac_R'].values*R_raw
+    #RRv = darkfigure*(R_raw-W_R)
+
+    #V = V_raw - W_V - RRv*((V_raw-W_V)/(M))
 
 
-    RRv = darkfigure*(R_raw-W_R)
-
-    V = V_raw - W_V - RRv*((V_raw-W_V)/(M))
-
-
-    Wn = darkfigure*W_R
-    Wv = W_V
+    #Wn = darkfigure*W_R
+    #Wv = W_V
+    
+    Wn = wrfrac*R_all 
+    Wv = wvfrac*(V_all+Rv_all) #depending on definition of Rv
 
     Etot = 1./params['rho']*cases*darkfigure
     Itot = 1./(params['gamma']+params['delta']+params['Theta'])* cases*darkfigure
 
-    S = M  - V - RRv - Wn - Wv - Etot - Itot - ICU_raw
+    
+    #S = M*(1-V_raw/M)*(1-R_raw/M) - Etot - Itot - ICU_raw  (the same as below)
+    
+    S = M - V - R - Rv - Wn - Wv -Etot - Itot - ICU_raw
 
     for i, s in enumerate(S):
         if s <= 0:
-            S[i]=0
+            print('Error')
 
     En = (Wn) / (S+Wn+Wv) * Etot
     Ev = (Wv) / (S+Wn+Wv) * Etot
@@ -131,11 +149,14 @@ def calc_y0(params, inspiration='Germany'):
     ICU  = (I+In*(1-params['kappa'])) / (I+ICUimmune) * ICU_raw
 
     #Nur ne Approximation da Leute wegsterben in D
-    R  = (S+Wn) / (S+Wn+Wv) * RRv
-    Rv =   (Wv) / (S+Wn+Wv) * RRv
+    #R  = (S+Wn) / (S+Wn+Wv) * RRv
+    #Rv =   (Wv) / (S+Wn+Wv) * RRv
+    
 
+    
 
     y0= {
+            'S':   S,
             'V':   V,
             'Wn':  Wn,
             'Wv':  Wv,
@@ -156,13 +177,17 @@ def calc_y0(params, inspiration='Germany'):
         }
 
 
-    S = M - (sum(y0.values())-y0['UC']-y0['WC'])
+    #S = M - (sum(y0.values())-y0['UC']-y0['WC'])
     
-    for i, s in enumerate(S):
-        if s <= 0:
-            S[i]=0
+    #for i, s in enumerate(S):
+     #   if s <= 0:
+      #      print('Error 2')
+            #S[i]=0
+            
+    for i in range(6):
+        print('Agegroup', i+1,'S:', S[i]/M[i], 'V:', V[i]/M[i], 'R:', R[i]/M[i], 'Rv:', Rv[i]/M[i], 'Immunized:', (V[i]+R[i]+Rv[i])/M[i])
         
-    y0.update({'S':S})
+    #y0.update({'S':S})
     
     y0_array = [y0['S'],y0['V'],y0['Wn'],y0['Wv'],y0['E'],y0['EBn'],y0['EBv'],y0['I'],y0['IBn'],y0['IBv'],
                 y0['ICU'],y0['ICUv'],y0['R'],y0['Rv'],y0['UC'],y0['WC'],y0['D'],y0['C']]
