@@ -179,7 +179,7 @@ class Model:
 
     def fun(self, t, y):
         #y.reshape([self.eqs,self.ags])
-        (S,V,Wn,Wv,E,EBn,EBv,I,IBn,IBv,ICU,ICUv,R,Rv,UC,WC,D,C) = np.split(y, self.eqs)
+        (S,V,Wn,Wv,E,EBn,EBv,I,IBn,IBv,ICU,ICUv,R,Rv,UC,WC,D,Dv) = np.split(y, self.eqs)
 
         # definitions to make DEs more readable
         M = self.M
@@ -226,10 +226,10 @@ class Model:
         dRv = gamma*IBv - omega_n*Rv + gamma_ICU*ICUv
         dUC = Phi
         dWC = phi
-        dD = Theta*I + (1-kappa)*Theta*(IBn+IBv) + Theta_ICU*(ICU+ICUv)
-        dC = (S+Wn+Wv)*infect
+        dD = Theta*I + (1-kappa)*Theta*IBn + Theta_ICU*ICU
+        dDv = (1-kappa)*Theta*IBv + Theta_ICU*ICUv
 
-        return np.concatenate([dS,dV,dWn,dWv,dE,dEBn,dEBv,dI,dIBn,dIBv,dICU,dICUv,dR,dRv,dUC,dWC,dD,dC]).flatten()
+        return np.concatenate([dS,dV,dWn,dWv,dE,dEBn,dEBv,dI,dIBn,dIBv,dICU,dICUv,dR,dRv,dUC,dWC,dD,dDv]).flatten()
 
 
     def build_data(self):
