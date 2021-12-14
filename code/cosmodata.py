@@ -10,10 +10,7 @@ owid_raw = pd.read_csv('../parameters/owid-covid-data.csv', sep=',', header=0)
 owid = owid_raw.dropna(axis=0, how='any', subset=['icu_patients_per_million', 'date', 'stringency_index'])
 
 germany_owid=owid[owid['iso_code'] == 'DEU']
-                          
-#owid_ICU = germany_owid[18]
-#owid_NPI = germany_owid[45]
-#owid_dates = germany_owid[3]
+
 
 owid_ICU = list(germany_owid['icu_patients_per_million'])
 owid_NPI = list(germany_owid['stringency_index'])
@@ -44,34 +41,24 @@ for i in datesCosmo[1:]:
 avggroup = []
 cosmoraw = []
 for i in range(len(datesCosmo)-1):
-    avggroup.append((float(feiernnoages[3][i+1])-1)/4)
+    avggroup.append((float(feiernnoages[3][i+1])))
     cosmoraw.append(float(feiernnoages[3][i+1]))
-    
-corr, _ = pearsonr(cosmoraw, cosmotimelineICU)
-print('Correlation:' , corr)
-    
-average_stringency = np.nanmean(NPItime)
-average_cosmo = np.nanmean(avggroup)
 
-NPItime_aligned = np.array(NPItime)/average_stringency*average_cosmo
     
-#Plotten:
-#ax.scatter(cosmotimeline,avggroup, color='red', alpha=0.5)
-#ax.plot(t,NPItime, label='Stringency', color='green', zorder=5)
-
-#ax.plot(cosmotimelineICU, avggroup)
 
 
 
 # ----------------------------------------- ROMANIA -----------------------------------------------
 
-romania_owid = pd.read_csv('../parameters/romania_ourworldindata.csv', sep=',', header=None, usecols=[3,18,44])
-                           
-ROU_owid_ICU = romania_owid[18]
-ROU_owid_vaccines = romania_owid[44]
-ROU_owid_dates = romania_owid[3]
 
-ROU_t=np.linspace(0,len(ROU_owid_dates)-1,len(ROU_owid_dates)-1)
+romania_owid=owid[owid['iso_code'] == 'ROU']
+
+ROU_owid_ICU = list(romania_owid['icu_patients_per_million'])
+ROU_owid_vaccines = list(romania_owid['new_vaccinations_smoothed_per_million'])
+ROU_owid_dates = list(romania_owid['date'])
+
+
+ROU_t=np.arange(0,len(ROU_owid_dates)-1,1)
 
 ROU_ICUtime=[]
 ROU_vaccinetime=[]

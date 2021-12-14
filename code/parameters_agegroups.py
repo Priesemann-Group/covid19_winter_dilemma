@@ -18,8 +18,8 @@ params_base = {
     #'gamma_ICU': 0.13,
     #'Theta': 0.0005366,
     #'Theta_ICU': 0.09755,
-    'omega_v': 1./(8*30),
-    'omega_n': 1./(8*30),
+    'omega_v': 1./(7.5*30),
+    'omega_n': 1./(7.5*30),
 
     'mu': 0.267,
     'd_0': 8*30.,
@@ -59,7 +59,7 @@ params_base = {
 }
 
 
-def get_params(scen=3, inspiration='Germany'):
+def get_params(scen=3, inspiration='60'):
 
     params = params_base.copy()
     for i in ['delta', 'gamma', 'gamma_ICU', 'Theta', 'Theta_ICU', 'alpha_u', 'alpha_w', 'u_base', 'w_base', 'chi_u', 'chi_w']:
@@ -72,19 +72,12 @@ def get_params(scen=3, inspiration='Germany'):
     return params 
 
 
-def calc_y0(params, inspiration='Germany'):
+def calc_y0(params, vacfrac='60'):
 
-    darkfigure = 2
+    darkfigure = 1
     
-    translation={
-        'Germany': 'DEU',
-        'Portugal': 'POR',
-        'Poland': 'POL',
-        'Austria': 'AUS',
-        'Denmark': 'DSK'
-    }
     
-    vacfrac = DEUparams[f'vacfrac_{translation[inspiration]}'].values    
+    vacfrac = DEUparams[f'vacfrac_{vacfrac}'].values    
     frac = DEUparams['Anteil'].values
     
     R_raw = DEUparams['R_raw'].values
@@ -94,14 +87,16 @@ def calc_y0(params, inspiration='Germany'):
     wvfrac = DEUparams['wanedfrac_V'].values
     wrfrac = DEUparams['wanedfrac_R'].values
     
-    #W_V = V_raw * DEUparams['wanedfrac_V'].values
-    #W_R = DEUparams['wanedfrac_R'].values*R_raw
+
     M = frac * 1e6
     
     V_raw = M * vacfrac
     R_raw = R_raw*darkfigure
     
     Rv_all = V_raw*R_raw/M #Overlap
+    
+    print('effective immune rate:', np.array((V_raw+R_raw - Rv_all))/M)
+    print('total effective immune rate:', np.sum(np.array((V_raw+R_raw - Rv_all))/M*frac))
     
     V_all = V_raw - Rv_all
     V = V_all*(1-wvfrac)
@@ -111,13 +106,7 @@ def calc_y0(params, inspiration='Germany'):
     R = R_all*(1-wrfrac)
     Rv = Rv_all*(1-wvfrac) #to discuss (if wrfrac or wvfrac)
 
-    #RRv = darkfigure*(R_raw-W_R)
 
-    #V = V_raw - W_V - RRv*((V_raw-W_V)/(M))
-
-
-    #Wn = darkfigure*W_R
-    #Wv = W_V
     
     Wn = wrfrac*R_all 
     Wv = wvfrac*(V_all+Rv_all) #depending on definition of Rv
@@ -148,9 +137,7 @@ def calc_y0(params, inspiration='Germany'):
     ICUv =   (Iv*(1-params['kappa'])) / (I+ICUimmune) * ICU_raw
     ICU  = (I+In*(1-params['kappa'])) / (I+ICUimmune) * ICU_raw
 
-    #Nur ne Approximation da Leute wegsterben in D
-    #R  = (S+Wn) / (S+Wn+Wv) * RRv
-    #Rv =   (Wv) / (S+Wn+Wv) * RRv
+
     
 
     
@@ -176,18 +163,8 @@ def calc_y0(params, inspiration='Germany'):
             'C':   [0.]*6,
         }
 
-
-    #S = M - (sum(y0.values())-y0['UC']-y0['WC'])
-    
-    #for i, s in enumerate(S):
-     #   if s <= 0:
-      #      print('Error 2')
-            #S[i]=0
-            
-    for i in range(6):
-        print('Agegroup', i+1,'S:', S[i]/M[i], 'V:', V[i]/M[i], 'R:', R[i]/M[i], 'Rv:', Rv[i]/M[i], 'Immunized:', (V[i]+R[i]+Rv[i])/M[i])
         
-    #y0.update({'S':S})
+
     
     y0_array = [y0['S'],y0['V'],y0['Wn'],y0['Wv'],y0['E'],y0['EBn'],y0['EBv'],y0['I'],y0['IBn'],y0['IBv'],
                 y0['ICU'],y0['ICUv'],y0['R'],y0['Rv'],y0['UC'],y0['WC'],y0['D'],y0['C']]
